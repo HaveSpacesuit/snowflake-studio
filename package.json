@@ -1,0 +1,25 @@
+{
+  "name": "snowflake",
+  "version": "2.0.0",
+  "description": "Paper snowflake simulator built with React and Vite.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "playwright test -c playwright.config.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "polygon-clipping": "^0.15.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
