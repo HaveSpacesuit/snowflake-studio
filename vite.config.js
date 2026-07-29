@@ -7,6 +7,10 @@ import { resolve } from "node:path";
 export default defineConfig({
   plugins: [react()],
   build: {
+    assetsInlineLimit: (filePath) => {
+      if (filePath.endsWith(".svg")) return false;
+      return undefined;
+    },
     rollupOptions: {
       input: {
         studio: resolve(__dirname, "index.html"),

@@ -251,6 +251,110 @@ button:disabled {
   min-width: 0;
 }
 
+.editCanvasShell {
+  position: relative;
+}
+
+.editToolsRail {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(10, 18, 32, 0.72);
+  backdrop-filter: blur(2px);
+}
+
+.editToolButton {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.editToolButton:hover,
+.editToolButton:focus-visible {
+  background: rgba(111, 215, 255, 0.16);
+  border-color: rgba(111, 215, 255, 0.68);
+}
+
+.editToolButton[aria-pressed="true"] {
+  background: rgba(111, 215, 255, 0.22);
+  border-color: rgba(111, 215, 255, 0.9);
+}
+
+.editToolIcon {
+  width: 18px;
+  height: 18px;
+  display: block;
+  color: rgba(247, 252, 255, 0.98);
+  pointer-events: none;
+}
+
+.editToolButton:hover .editToolIcon,
+.editToolButton:focus-visible .editToolIcon {
+  color: #cceeff;
+}
+
+.editToolButton[aria-pressed="true"] .editToolIcon {
+  color: #7bd6ff;
+}
+
+.editToolTooltip {
+  position: absolute;
+  left: calc(100% + 9px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  pointer-events: none;
+  white-space: nowrap;
+  color: #ffffff;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  padding: 4px 7px;
+  border: 1px solid rgba(180, 234, 255, 0.6);
+  border-radius: 7px;
+  background: rgba(8, 14, 26, 0.95);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+}
+
+.editToolTooltip::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  background: rgba(8, 14, 26, 0.95);
+  border-left: 1px solid rgba(180, 234, 255, 0.6);
+  border-bottom: 1px solid rgba(180, 234, 255, 0.6);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.editToolButton:hover .editToolTooltip,
+.editToolButton:focus-visible .editToolTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
+@media (hover: none) {
+  .editToolButton:hover .editToolTooltip {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 .panelToolbar {
   margin-top: 10px;
   display: flex;
