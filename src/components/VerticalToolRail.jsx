@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 /**
  * Generic vertical icon tools rail with custom tooltip styling.
  *
@@ -19,7 +21,68 @@
  * }} props
  */
 export default function VerticalToolRail({ tools, ariaLabel = "Tools", className = "" }) {
+  const [touchTooltipToolId, setTouchTooltipToolId] = useState(null);
+  const longPressTimerRef = useRef(null);
+  const hideTooltipTimerRef = useRef(null);
   const railClassName = ["verticalToolRail", className].filter(Boolean).join(" ");
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current !== null) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const clearHideTooltipTimer = () => {
+    if (hideTooltipTimerRef.current !== null) {
+      clearTimeout(hideTooltipTimerRef.current);
+      hideTooltipTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      clearLongPressTimer();
+      clearHideTooltipTimer();
+    };
+  }, []);
+
+  const openTouchTooltip = (toolId) => {
+    clearLongPressTimer();
+    clearHideTooltipTimer();
+    setTouchTooltipToolId(toolId);
+  };
+
+  const closeTouchTooltipSoon = (toolId) => {
+    clearHideTooltipTimer();
+    hideTooltipTimerRef.current = setTimeout(() => {
+      hideTooltipTimerRef.current = null;
+      setTouchTooltipToolId((current) => (current === toolId ? null : current));
+    }, 1200);
+  };
+
+  const onToolTouchStart = (tool) => {
+    if (tool.disabled) return;
+    clearLongPressTimer();
+    clearHideTooltipTimer();
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      openTouchTooltip(tool.id);
+    }, 420);
+  };
+
+  const onToolTouchEnd = (tool) => {
+    clearLongPressTimer();
+    if (touchTooltipToolId === tool.id) {
+      closeTouchTooltipSoon(tool.id);
+    }
+  };
+
+  const onToolTouchCancel = () => {
+    clearLongPressTimer();
+    clearHideTooltipTimer();
+    setTouchTooltipToolId(null);
+  };
 
   return (
     <div className={railClassName} role="toolbar" aria-label={ariaLabel}>
@@ -33,10 +96,16 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
             key={tool.id}
             id={tool.buttonId || undefined}
             type="button"
-            className="verticalToolRailButton"
+            className={[
+              "verticalToolRailButton",
+              touchTooltipToolId === tool.id ? "is-touch-tooltip-open" : ""
+            ].filter(Boolean).join(" ")}
             aria-label={tool.label}
             aria-pressed={tool.isActive ? "true" : "false"}
             onClick={tool.onClick}
+            onTouchStart={() => onToolTouchStart(tool)}
+            onTouchEnd={() => onToolTouchEnd(tool)}
+            onTouchCancel={onToolTouchCancel}
             disabled={Boolean(tool.disabled)}
           >
             <svg className="verticalToolRailIcon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">

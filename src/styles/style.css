@@ -374,6 +374,12 @@ button:disabled {
   transform: translateY(-50%) translateX(0);
 }
 
+.verticalToolRailButton.is-touch-tooltip-open .verticalToolRailTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(-50%) translateX(0);
+}
+
 @media (hover: none) {
   .verticalToolRailButton:hover .verticalToolRailTooltip {
     opacity: 0;

@@ -1264,6 +1264,16 @@ export function createStudioEngine(config) {
         startTouchPinch(foldedSvg, state.foldedView, tState);
         return;
       }
+
+      if (state.activeTool === TOOL_CIRCLE) {
+        const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+        state.touchDrawStartPoint = { x: pt.x, y: pt.y };
+        state.touchDrawMoved = false;
+        state.touchDrawStartTime = performance.now();
+        updateCirclePreview(pt);
+        render();
+        return;
+      }
     }
 
     if (evt.pointerType !== "touch" && evt.button === 0 && isCircleToolActive(evt)) {
@@ -1342,6 +1352,16 @@ export function createStudioEngine(config) {
         }
         if (updateTouchPinch(foldedSvg, state.foldedView, tState)) return;
       }
+
+      if (!state.drawing && state.activeTool === TOOL_CIRCLE) {
+        const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+        if (state.touchDrawStartPoint && dist(state.touchDrawStartPoint, pt) > TOUCH_DRAG_TOL) {
+          state.touchDrawMoved = true;
+        }
+        updateCirclePreview(pt, false);
+        render();
+        return;
+      }
     }
 
     if (handlePanPointerMove(evt, foldedSvg)) return;
@@ -1388,7 +1408,37 @@ export function createStudioEngine(config) {
         tState.pinchActive = false;
         tState.startDistance = 0;
       }
-      if (wasPinch && !state.drawing) return;
+      if (wasPinch && !state.drawing) {
+        state.touchDrawStartPoint = null;
+        state.touchDrawMoved = false;
+        state.touchDrawStartTime = 0;
+        return;
+      }
+
+      if (state.activeTool === TOOL_CIRCLE && !state.drawing) {
+        const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+        if (state.touchDrawStartPoint && dist(state.touchDrawStartPoint, pt) > TOUCH_DRAG_TOL) {
+          state.touchDrawMoved = true;
+        }
+
+        if (!state.touchDrawMoved) {
+          updateCirclePreview(pt, false);
+          applyCircleCutAtCursor(pt);
+        } else {
+          updateCirclePreview(pt, false);
+          render();
+        }
+
+        try {
+          foldedSvg.releasePointerCapture(evt.pointerId);
+        } catch (_) {
+          // ignore
+        }
+        state.touchDrawStartPoint = null;
+        state.touchDrawMoved = false;
+        state.touchDrawStartTime = 0;
+        return;
+      }
     }
 
     if (handlePanPointerUp(evt, foldedSvg)) return;
