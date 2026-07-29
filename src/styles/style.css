@@ -255,11 +255,7 @@ button:disabled {
   position: relative;
 }
 
-.editToolsRail {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 3;
+.verticalToolRail {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -270,7 +266,14 @@ button:disabled {
   backdrop-filter: blur(2px);
 }
 
-.editToolButton {
+.editToolsRail {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+}
+
+.verticalToolRailButton {
   position: relative;
   width: 34px;
   height: 34px;
@@ -280,18 +283,18 @@ button:disabled {
   place-items: center;
 }
 
-.editToolButton:hover,
-.editToolButton:focus-visible {
+.verticalToolRailButton:hover,
+.verticalToolRailButton:focus-visible {
   background: rgba(111, 215, 255, 0.16);
   border-color: rgba(111, 215, 255, 0.68);
 }
 
-.editToolButton[aria-pressed="true"] {
+.verticalToolRailButton[aria-pressed="true"] {
   background: rgba(111, 215, 255, 0.22);
   border-color: rgba(111, 215, 255, 0.9);
 }
 
-.editToolIcon {
+.verticalToolRailIcon {
   width: 18px;
   height: 18px;
   display: block;
@@ -299,16 +302,16 @@ button:disabled {
   pointer-events: none;
 }
 
-.editToolButton:hover .editToolIcon,
-.editToolButton:focus-visible .editToolIcon {
+.verticalToolRailButton:hover .verticalToolRailIcon,
+.verticalToolRailButton:focus-visible .verticalToolRailIcon {
   color: #cceeff;
 }
 
-.editToolButton[aria-pressed="true"] .editToolIcon {
+.verticalToolRailButton[aria-pressed="true"] .verticalToolRailIcon {
   color: #7bd6ff;
 }
 
-.editToolTooltip {
+.verticalToolRailTooltip {
   position: absolute;
   left: calc(100% + 9px);
   top: 50%;
@@ -328,7 +331,7 @@ button:disabled {
   transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
 }
 
-.editToolTooltip::before {
+.verticalToolRailTooltip::before {
   content: "";
   position: absolute;
   left: -5px;
@@ -341,15 +344,15 @@ button:disabled {
   transform: translateY(-50%) rotate(45deg);
 }
 
-.editToolButton:hover .editToolTooltip,
-.editToolButton:focus-visible .editToolTooltip {
+.verticalToolRailButton:hover .verticalToolRailTooltip,
+.verticalToolRailButton:focus-visible .verticalToolRailTooltip {
   opacity: 1;
   visibility: visible;
   transform: translateY(-50%) translateX(0);
 }
 
 @media (hover: none) {
-  .editToolButton:hover .editToolTooltip {
+  .verticalToolRailButton:hover .verticalToolRailTooltip {
     opacity: 0;
     visibility: hidden;
   }
