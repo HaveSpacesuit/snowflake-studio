@@ -77,6 +77,10 @@ import {
 } from "./scene.js";
 
 const noop = () => {};
+const TOOL_FREEHAND = "freehand";
+const TOOL_STRAIGHT = "straight";
+const TOOL_CIRCLE = "circle";
+const TOOL_IDS = new Set([TOOL_FREEHAND, TOOL_STRAIGHT, TOOL_CIRCLE]);
 const CIRCLE_RADIUS_MIN = 8;
 const CIRCLE_RADIUS_MAX = 220;
 const CIRCLE_RADIUS_DEFAULT = 34;
@@ -89,7 +93,8 @@ export function createStudioEngine(config) {
     onStatus = noop,
     onHistory = noop,
     onOptions = noop,
-    onCanSave = noop
+    onCanSave = noop,
+    onToolChange = noop
   } = config;
 
   const backgroundCtx = backgroundCanvas.getContext("2d");
@@ -118,6 +123,7 @@ export function createStudioEngine(config) {
     undoStack: [],
     redoStack: [],
     livePreview: { mode: "none", text: "Ready" },
+    activeTool: TOOL_FREEHAND,
     unfoldedSpinPaused: false,
     unfoldedSpinStartTime: performance.now(),
     unfoldedSpinAngle: 0,
@@ -317,8 +323,34 @@ export function createStudioEngine(config) {
     return computeCollectionSignature() !== getBasePaperSignature();
   }
 
+  function syncToolState() {
+    onToolChange(state.activeTool);
+  }
+
+  function setActiveTool(nextTool, { announce = false } = {}) {
+    const normalized = typeof nextTool === "string" ? nextTool.toLowerCase() : "";
+    if (!TOOL_IDS.has(normalized) || normalized === state.activeTool) return false;
+
+    state.activeTool = normalized;
+    state.touchStraightArmed = false;
+
+    if (normalized !== TOOL_CIRCLE) {
+      clearCirclePreview();
+    } else if (announce) {
+      setStatus(`Circle mode enabled: wheel sets radius (${Math.round(state.circleCutRadius)} px), click to cut.`);
+    }
+
+    syncToolState();
+    render();
+    return true;
+  }
+
   function isCircleModeModifierActive(evt) {
     return !!evt && evt.pointerType !== "touch" && evt.ctrlKey && !evt.metaKey;
+  }
+
+  function isCircleToolActive(evt) {
+    return state.activeTool === TOOL_CIRCLE || isCircleModeModifierActive(evt);
   }
 
   function getCircleCenterFromCursor(cursorPt) {
@@ -1092,7 +1124,11 @@ export function createStudioEngine(config) {
   }
 
   function isStraightModeActive(evt) {
-    return !!(evt.shiftKey || (evt.pointerType === "touch" && state.touchStraightArmed));
+    return !!(
+      state.activeTool === TOOL_STRAIGHT ||
+      evt.shiftKey ||
+      (evt.pointerType === "touch" && state.touchStraightArmed)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1230,7 +1266,7 @@ export function createStudioEngine(config) {
       }
     }
 
-    if (evt.pointerType !== "touch" && evt.button === 0 && isCircleModeModifierActive(evt)) {
+    if (evt.pointerType !== "touch" && evt.button === 0 && isCircleToolActive(evt)) {
       evt.preventDefault();
       const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
       updateCirclePreview(pt);
@@ -1284,7 +1320,7 @@ export function createStudioEngine(config) {
   function onFoldedPointerMove(evt) {
     if (!state.drawing && evt.pointerType !== "touch") {
       const hoverPt = getSvgPoint(evt, foldedSvg, state.foldedView);
-      if (isCircleModeModifierActive(evt)) {
+      if (isCircleToolActive(evt)) {
         updateCirclePreview(hoverPt);
         render();
         return;
@@ -1474,7 +1510,7 @@ export function createStudioEngine(config) {
   }
 
   function onFoldedWheel(evt) {
-    if (!state.drawing && isCircleModeModifierActive(evt)) {
+    if (!state.drawing && isCircleToolActive(evt)) {
       evt.preventDefault();
       const direction = evt.deltaY < 0 ? 1 : -1;
       state.circleCutRadius = clamp(state.circleCutRadius + direction * 2, CIRCLE_RADIUS_MIN, CIRCLE_RADIUS_MAX);
@@ -1499,7 +1535,7 @@ export function createStudioEngine(config) {
   }
 
   function onDocumentKeyUp(evt) {
-    if (evt.key === "Control" && state.circleHoverPoint && !state.drawing) {
+    if (evt.key === "Control" && state.circleHoverPoint && !state.drawing && state.activeTool !== TOOL_CIRCLE) {
       clearCirclePreview();
       render();
     }
@@ -1560,6 +1596,7 @@ export function createStudioEngine(config) {
     if (!tryRestoreActiveStudioState()) {
       resetPaper();
     }
+    syncToolState();
     rafId = requestAnimationFrame(animationLoop);
   }
 
@@ -1588,6 +1625,8 @@ export function createStudioEngine(config) {
     exportSvg: exportSnowflakeSvg,
     saveToCollection: addCurrentSnowflakeToCollection,
     setOptions: setSnowflakeOptions,
+    setActiveTool: (toolId) => setActiveTool(toolId, { announce: true }),
+    getActiveTool: () => state.activeTool,
     getOptions: () => normalizeSnowflakeOptions(state.options),
     hasChanges: hasSnowflakeChanges
   };

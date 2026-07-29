@@ -41,10 +41,12 @@ export default function HelpModal({ open, onClose }) {
             <ul>
               <li><strong>Wheel</strong> over either panel to zoom in or out.</li>
               <li><strong>Middle-click and drag</strong> a zoomed panel to pan around.</li>
+              <li>Use the Edit toolbar to pick <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> mode.</li>
               <li>When starting a cut, click slightly <strong>outside</strong> the folded shape, then cross through it.</li>
               <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
-              <li><strong>Shift</strong> while drawing snaps the cut into a straight line.</li>
-              <li>Hold <strong>Ctrl</strong> on Edit to preview a circle cut; <strong>wheel</strong> adjusts radius and <strong>click</strong> applies it.</li>
+              <li><strong>Shift</strong> while drawing is still a straight-line shortcut.</li>
+              <li>In <strong>Circle</strong> mode, <strong>wheel</strong> adjusts radius and <strong>click</strong> applies the cut.</li>
+              <li><strong>Ctrl</strong> on Edit temporarily previews circle mode without switching tools.</li>
               <li><strong>New</strong>, <strong>Undo</strong>, and <strong>Redo</strong> manage your cut history.</li>
               <li><strong>Random cut</strong> adds a valid example cut for you.</li>
               <li><strong>Export SVG</strong> downloads the current snowflake as a vector file.</li>
@@ -57,6 +59,7 @@ export default function HelpModal({ open, onClose }) {
             <ul>
               <li><strong>Pinch with two fingers</strong> on either panel to zoom in or out.</li>
               <li>Start each cut a little <strong>outside</strong> the folded shape, then drag through it.</li>
+              <li>Use the Edit toolbar to pick <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> mode.</li>
               <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
               <li><strong>Long-press</strong> on the Edit panel to arm straight-line mode, then drag for your next touch cut.</li>
               <li><strong>New</strong>, <strong>Undo</strong>, and <strong>Redo</strong> manage your cut history.</li>

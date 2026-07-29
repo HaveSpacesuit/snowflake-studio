@@ -14,7 +14,7 @@ export default function App() {
   const unfoldedHostRef = useRef(null);
   const backgroundCanvasRef = useRef(null);
 
-  const { engineRef, status, setStatus, history, options, canSave } = useStudioEngine({
+  const { engineRef, status, setStatus, history, activeTool, options, canSave } = useStudioEngine({
     foldedHostRef,
     unfoldedHostRef,
     backgroundCanvasRef
@@ -58,8 +58,10 @@ export default function App() {
         <section className="views">
           <EditPanel
             hostRef={foldedHostRef}
+            activeTool={activeTool}
             canUndo={history.canUndo}
             canRedo={history.canRedo}
+            onSelectTool={(toolId) => engineRef.current?.setActiveTool(toolId)}
             onNew={handleNew}
             onUndo={() => engineRef.current?.undo()}
             onRedo={() => engineRef.current?.redo()}

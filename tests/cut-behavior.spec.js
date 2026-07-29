@@ -147,6 +147,24 @@ async function drawPathWithAltHeldOnRelease(page, points) {
   return (await page.locator("#status").textContent()) || "";
 }
 
+function toolButton(page, label) {
+  return page.getByRole("button", { name: label, exact: true });
+}
+
+async function selectTool(page, label) {
+  await toolButton(page, label).click();
+}
+
+async function clickFoldedPoint(page, point) {
+  const canvas = page.locator("#foldedCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Folded canvas not found");
+
+  const intrinsic = await panelSize(canvas);
+  const target = await foldedPointToPage(page, box, intrinsic, point);
+  await page.mouse.click(target.x, target.y);
+}
+
 async function whitePixelCount(page) {
   return await page.evaluate(() => {
     if (typeof window.__snowflakePaperArea === "number") {
@@ -562,5 +580,48 @@ test.describe("snowflake cut validity", () => {
     expect(afterPan2.y).toBeLessThanOrEqual(0);
     expect(afterPan2.x).toBeGreaterThanOrEqual(minOffsetX);
     expect(afterPan2.y).toBeGreaterThanOrEqual(minOffsetY);
+  });
+
+  test("toolbar tool buttons update active state", async ({ page }) => {
+    await reset(page);
+
+    await expect(toolButton(page, "Freehand tool")).toHaveAttribute("aria-pressed", "true");
+    await expect(toolButton(page, "Straight tool")).toHaveAttribute("aria-pressed", "false");
+    await expect(toolButton(page, "Circle tool")).toHaveAttribute("aria-pressed", "false");
+
+    await selectTool(page, "Straight tool");
+    await expect(toolButton(page, "Freehand tool")).toHaveAttribute("aria-pressed", "false");
+    await expect(toolButton(page, "Straight tool")).toHaveAttribute("aria-pressed", "true");
+
+    await selectTool(page, "Circle tool");
+    await expect(toolButton(page, "Straight tool")).toHaveAttribute("aria-pressed", "false");
+    await expect(toolButton(page, "Circle tool")).toHaveAttribute("aria-pressed", "true");
+
+    await selectTool(page, "Freehand tool");
+    await expect(toolButton(page, "Freehand tool")).toHaveAttribute("aria-pressed", "true");
+    await expect(toolButton(page, "Circle tool")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("straight tool constrains cut without holding shift", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Straight tool");
+
+    const status = await drawPath(page, [
+      { x: 238, y: 100 },
+      { x: 360, y: 255 },
+      { x: 284, y: 208 }
+    ]);
+
+    expect(statusIsRejected(status)).toBe(true);
+  });
+
+  test("circle tool applies a cut without holding ctrl", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    await clickFoldedPoint(page, { x: 260, y: 120 });
+    const status = (await page.locator("#status").textContent()) || "";
+
+    expect(status).toContain("Circle cut applied");
   });
 });

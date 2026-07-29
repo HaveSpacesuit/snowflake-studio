@@ -10,6 +10,8 @@
  *     isActive?: boolean,
  *     disabled?: boolean,
  *     tooltip?: string,
+ *     shortcutDesktop?: string,
+ *     shortcutMobile?: string,
  *     buttonId?: string
  *   }>,
  *   ariaLabel?: string,
@@ -23,6 +25,9 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
     <div className={railClassName} role="toolbar" aria-label={ariaLabel}>
       {tools.map((tool) => {
         const tooltipText = tool.tooltip || tool.label;
+        const desktopHint = typeof tool.shortcutDesktop === "string" ? tool.shortcutDesktop.trim() : "";
+        const mobileHint = typeof tool.shortcutMobile === "string" ? tool.shortcutMobile.trim() : "";
+        const hasHint = desktopHint.length > 0 || mobileHint.length > 0;
         return (
           <button
             key={tool.id}
@@ -37,7 +42,15 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
             <svg className="verticalToolRailIcon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
               <use href={`${tool.icon}#icon`} />
             </svg>
-            <span className="verticalToolRailTooltip" aria-hidden="true">{tooltipText}</span>
+            <span className="verticalToolRailTooltip" aria-hidden="true">
+              <span className="verticalToolRailTooltipLabel">{tooltipText}</span>
+              {hasHint ? (
+                <span className="verticalToolRailTooltipHint">
+                  <span className="verticalToolRailHintDesktop">Shortcut: {desktopHint || mobileHint}</span>
+                  <span className="verticalToolRailHintMobile">Mobile: {mobileHint || desktopHint}</span>
+                </span>
+              ) : null}
+            </span>
           </button>
         );
       })}

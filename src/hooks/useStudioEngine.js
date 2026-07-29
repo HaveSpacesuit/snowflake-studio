@@ -11,6 +11,7 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
   const engineRef = useRef(null);
   const [status, setStatus] = useState("Ready");
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
+  const [activeTool, setActiveTool] = useState("freehand");
   const [options, setOptions] = useState(() => normalizeSnowflakeOptions(null));
   const [canSave, setCanSave] = useState(false);
 
@@ -21,6 +22,7 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
       backgroundCanvas: backgroundCanvasRef.current,
       onStatus: setStatus,
       onHistory: setHistory,
+      onToolChange: setActiveTool,
       onOptions: setOptions,
       onCanSave: setCanSave
     });
@@ -34,5 +36,5 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { engineRef, status, setStatus, history, options, canSave };
+  return { engineRef, status, setStatus, history, activeTool, options, canSave };
 }
