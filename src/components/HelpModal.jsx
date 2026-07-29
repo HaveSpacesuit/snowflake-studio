@@ -44,6 +44,7 @@ export default function HelpModal({ open, onClose }) {
               <li>When starting a cut, click slightly <strong>outside</strong> the folded shape, then cross through it.</li>
               <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
               <li><strong>Shift</strong> while drawing snaps the cut into a straight line.</li>
+              <li>Hold <strong>Ctrl</strong> on Edit to preview a circle cut; <strong>wheel</strong> adjusts radius and <strong>click</strong> applies it.</li>
               <li><strong>Alt</strong> while releasing skips the smoothing pass.</li>
               <li><strong>New</strong>, <strong>Undo</strong>, and <strong>Redo</strong> manage your cut history.</li>
               <li><strong>Random cut</strong> adds a valid example cut for you.</li>

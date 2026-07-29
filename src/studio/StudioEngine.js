@@ -33,14 +33,17 @@ import { clamp, dist, rand } from "../utils/math.js";
 import {
   cloneGeom,
   computeGeomCenter,
+  distanceToBoundary,
   geomArea,
   getGeomBounds,
   multiPolygonToPath,
+  normalizeGeom,
   pointInGeom,
   pointsToPath,
   snapCutEndsIfClose,
   snapPointToBoundaryIfClose
 } from "../geometry/polygon.js";
+import polygonClipping from "polygon-clipping";
 import {
   computeCutOutcome,
   cutPathLength,
@@ -74,6 +77,9 @@ import {
 } from "./scene.js";
 
 const noop = () => {};
+const CIRCLE_RADIUS_MIN = 8;
+const CIRCLE_RADIUS_MAX = 220;
+const CIRCLE_RADIUS_DEFAULT = 34;
 
 export function createStudioEngine(config) {
   const {
@@ -122,6 +128,8 @@ export function createStudioEngine(config) {
     touchDrawStartPoint: null,
     touchDrawStartTime: 0,
     touchDrawMoved: false,
+    circleCutRadius: CIRCLE_RADIUS_DEFAULT,
+    circleHoverPoint: null,
     lastCollectionSavedSignature: null,
     options: normalizeSnowflakeOptions(null),
     touch: {
@@ -310,6 +318,151 @@ export function createStudioEngine(config) {
     return computeCollectionSignature() !== getBasePaperSignature();
   }
 
+  function isCircleModeModifierActive(evt) {
+    return !!evt && evt.pointerType !== "touch" && evt.ctrlKey && !evt.metaKey;
+  }
+
+  function getCircleCenterFromCursor(cursorPt) {
+    return { x: cursorPt.x, y: cursorPt.y };
+  }
+
+  function buildCircleRing(center, radius) {
+    const segments = Math.max(28, Math.min(120, Math.round(radius * 1.8)));
+    const ring = [];
+    for (let i = 0; i < segments; i += 1) {
+      const angle = (i / segments) * Math.PI * 2;
+      ring.push([center.x + Math.cos(angle) * radius, center.y + Math.sin(angle) * radius]);
+    }
+    return ring;
+  }
+
+  function buildCirclePreviewPoints(cursorPt) {
+    const center = getCircleCenterFromCursor(cursorPt);
+    const ring = buildCircleRing(center, state.circleCutRadius);
+    const points = ring.map(([x, y]) => ({ x, y }));
+    if (points.length > 0) points.push({ x: points[0].x, y: points[0].y });
+    return points;
+  }
+
+  function circleIntersectsPaperEdge(center, radius) {
+    const segments = Math.max(36, Math.min(180, Math.round(radius * 2.2)));
+    let sawInside = false;
+    let sawOutside = false;
+    let touchedBoundary = false;
+
+    for (let i = 0; i < segments; i += 1) {
+      const angle = (i / segments) * Math.PI * 2;
+      const pt = {
+        x: center.x + Math.cos(angle) * radius,
+        y: center.y + Math.sin(angle) * radius
+      };
+
+      if (pointInGeom(pt, state.paperGeom)) sawInside = true;
+      else sawOutside = true;
+
+      if (!touchedBoundary && distanceToBoundary(pt, state.paperGeom) <= 1.2) {
+        touchedBoundary = true;
+      }
+
+      if (touchedBoundary || (sawInside && sawOutside)) return true;
+    }
+
+    return false;
+  }
+
+  function updateCirclePreview(cursorPt, announce = true) {
+    const circleCenter = getCircleCenterFromCursor(cursorPt);
+    const valid = circleIntersectsPaperEdge(circleCenter, state.circleCutRadius);
+    state.circleHoverPoint = cursorPt;
+    state.currentCut = buildCirclePreviewPoints(cursorPt);
+    state.lockedCut = null;
+    state.prettifyActive = false;
+    state.livePreview = {
+      mode: valid ? "circle" : "invalid",
+      text: valid
+        ? `Circle mode: wheel sets radius (${Math.round(state.circleCutRadius)} px), click to cut.`
+        : `Invalid circle: must intersect an edge (radius ${Math.round(state.circleCutRadius)} px).`
+    };
+    if (announce) setStatus(state.livePreview.text);
+  }
+
+  function clearCirclePreview() {
+    state.circleHoverPoint = null;
+    if (!state.drawing) {
+      const wasCirclePreview = state.livePreview.mode === "circle";
+      state.currentCut = [];
+      state.lockedCut = null;
+      state.prettifyActive = false;
+      state.livePreview = { mode: "none", text: "Ready" };
+      if (wasCirclePreview) setStatus("Ready");
+    }
+  }
+
+  function applyCircleCutAtCursor(cursorPt) {
+    if (!state.paperGeom || state.paperGeom.length === 0) {
+      setStatus("No paper remaining for a circle cut.");
+      return;
+    }
+
+    const beforeGeom = cloneGeom(state.paperGeom);
+    const beforeArea = geomArea(beforeGeom);
+    const circleCenter = getCircleCenterFromCursor(cursorPt);
+
+    if (!circleIntersectsPaperEdge(circleCenter, state.circleCutRadius)) {
+      setStatus("Circle cut must intersect a folded-paper edge.");
+      updateCirclePreview(cursorPt, false);
+      render();
+      return;
+    }
+
+    const ring = buildCircleRing(circleCenter, state.circleCutRadius);
+    const cutGeom = normalizeGeom([[ring]]);
+    if (cutGeom.length === 0) {
+      setStatus("Circle cut failed due to geometry precision.");
+      return;
+    }
+
+    let nextGeom;
+    try {
+      nextGeom = normalizeGeom(polygonClipping.difference(beforeGeom, cutGeom));
+    } catch (err) {
+      console.error("Circle cut boolean failed", err);
+      setStatus("Circle cut failed due to geometry precision.");
+      return;
+    }
+
+    if (!nextGeom || nextGeom.length === 0) {
+      setStatus("Circle cut removed all paper. Try a smaller radius.");
+      return;
+    }
+
+    const afterArea = geomArea(nextGeom);
+    if (!Number.isFinite(afterArea) || afterArea >= beforeArea - 0.0001) {
+      setStatus("Circle cut must overlap the folded paper to remove area.");
+      return;
+    }
+
+    pushUndoSnapshot();
+    state.paperGeom = nextGeom;
+    state.unfoldedDirty = true;
+
+    let removedGeom = [];
+    try {
+      removedGeom = normalizeGeom(polygonClipping.difference(beforeGeom, nextGeom));
+    } catch (_) {
+      removedGeom = [];
+    }
+    enqueueFallingCutAnimation(removedGeom);
+
+    setStatus(
+      `Circle cut applied (radius ${Math.round(state.circleCutRadius)} px). Remaining area: ${Math.round(afterArea)} px`
+    );
+    updateHistoryControls();
+
+    updateCirclePreview(cursorPt, false);
+    render();
+  }
+
   // -------------------------------------------------------------------------
   // Falling cut scrap animation
   // -------------------------------------------------------------------------
@@ -472,7 +625,8 @@ export function createStudioEngine(config) {
     if (state.currentCut.length > 1) {
       const drawPoints = getDisplayedCutPoints(state.currentCut);
       foldedLayer.liveCut.setAttribute("d", pointsToPath(drawPoints.map((p) => [p.x, p.y])));
-      foldedLayer.liveCut.setAttribute("stroke", state.livePreview.mode === "edge" ? "#6fd7ff" : "#ff7ca8");
+      const previewStroke = state.livePreview.mode === "edge" || state.livePreview.mode === "circle" ? "#6fd7ff" : "#ff7ca8";
+      foldedLayer.liveCut.setAttribute("stroke", previewStroke);
       foldedLayer.liveCut.style.display = "";
     } else {
       foldedLayer.liveCut.style.display = "none";
@@ -854,6 +1008,7 @@ export function createStudioEngine(config) {
     clearTouchPointers(state.touch.folded);
     clearTouchPointers(state.touch.unfolded);
     state.touchStraightArmed = false;
+    state.circleHoverPoint = null;
     state.touchDrawStartPoint = null;
     state.touchDrawStartTime = 0;
     state.touchDrawMoved = false;
@@ -1084,6 +1239,14 @@ export function createStudioEngine(config) {
       }
     }
 
+    if (evt.pointerType !== "touch" && evt.button === 0 && isCircleModeModifierActive(evt)) {
+      evt.preventDefault();
+      const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+      updateCirclePreview(pt);
+      applyCircleCutAtCursor(pt);
+      return;
+    }
+
     if (handleMiddlePanPointerDown(evt, foldedSvg, state.foldedView)) return;
     if (evt.button !== 0) return;
     const rawPt = getSvgPoint(evt, foldedSvg, state.foldedView);
@@ -1129,6 +1292,19 @@ export function createStudioEngine(config) {
   }
 
   function onFoldedPointerMove(evt) {
+    if (!state.drawing && evt.pointerType !== "touch") {
+      const hoverPt = getSvgPoint(evt, foldedSvg, state.foldedView);
+      if (isCircleModeModifierActive(evt)) {
+        updateCirclePreview(hoverPt);
+        render();
+        return;
+      }
+      if (state.circleHoverPoint) {
+        clearCirclePreview();
+        render();
+      }
+    }
+
     if (evt.pointerType === "touch") {
       const tState = getTouchState(foldedSvg);
       if (tState.pointers.has(evt.pointerId)) {
@@ -1312,6 +1488,15 @@ export function createStudioEngine(config) {
   }
 
   function onFoldedWheel(evt) {
+    if (!state.drawing && isCircleModeModifierActive(evt)) {
+      evt.preventDefault();
+      const direction = evt.deltaY < 0 ? 1 : -1;
+      state.circleCutRadius = clamp(state.circleCutRadius + direction * 2, CIRCLE_RADIUS_MIN, CIRCLE_RADIUS_MAX);
+      const hoverPt = state.circleHoverPoint || getSvgPoint(evt, foldedSvg, state.foldedView);
+      updateCirclePreview(hoverPt);
+      render();
+      return;
+    }
     handleWheelZoom(evt, foldedSvg, state.foldedView);
   }
 
@@ -1325,6 +1510,13 @@ export function createStudioEngine(config) {
 
   function onDocumentKeyDown(evt) {
     handleHistoryShortcut(evt);
+  }
+
+  function onDocumentKeyUp(evt) {
+    if (evt.key === "Control" && state.circleHoverPoint && !state.drawing) {
+      clearCirclePreview();
+      render();
+    }
   }
 
   function onWindowResize() {
@@ -1358,6 +1550,8 @@ export function createStudioEngine(config) {
 
     document.addEventListener("keydown", onDocumentKeyDown);
     documentListeners.push(["keydown", onDocumentKeyDown]);
+    document.addEventListener("keyup", onDocumentKeyUp);
+    documentListeners.push(["keyup", onDocumentKeyUp]);
     window.addEventListener("resize", onWindowResize);
     windowListeners.push(["resize", onWindowResize]);
   }
