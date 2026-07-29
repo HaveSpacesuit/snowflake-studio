@@ -124,32 +124,6 @@ async function drawShiftLineWithWaypoints(page, start, waypoints) {
   return (await page.locator("#status").textContent()) || "";
 }
 
-async function drawAltPath(page, points) {
-  const canvas = page.locator("#foldedCanvas");
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("Folded canvas not found");
-
-  const intrinsic = await panelSize(canvas);
-  const toPage = (p) => ({
-    x: box.x + (p.x / intrinsic.width) * box.width,
-    y: box.y + (p.y / intrinsic.height) * box.height
-  });
-
-  const start = toPage(points[0]);
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.keyboard.down("Alt");
-
-  for (let i = 1; i < points.length; i += 1) {
-    const next = toPage(points[i]);
-    await page.mouse.move(next.x, next.y);
-  }
-
-  await page.keyboard.up("Alt");
-  await page.mouse.up();
-  return (await page.locator("#status").textContent()) || "";
-}
-
 async function drawPathWithAltHeldOnRelease(page, points) {
   const canvas = page.locator("#foldedCanvas");
   const box = await canvas.boundingBox();
@@ -370,7 +344,7 @@ test.describe("snowflake cut validity", () => {
     expect(statusIsAccepted(status)).toBe(true);
   });
 
-  test("holding alt prevents prettify before subtraction", async ({ page }) => {
+  test("holding alt does not change prettify behavior", async ({ page }) => {
     await reset(page);
 
     const status = await drawPathWithAltHeldOnRelease(page, [
@@ -381,7 +355,7 @@ test.describe("snowflake cut validity", () => {
       { x: 360, y: 255 }
     ]);
 
-    expect(status).not.toContain("prettified");
+    expect(status).toContain("prettified");
     expect(statusIsAccepted(status)).toBe(true);
   });
 
