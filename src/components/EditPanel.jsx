@@ -1,6 +1,7 @@
 import svgDraw from "@stratakit/icons/draw.svg";
 import svgLine from "@stratakit/icons/line.svg";
 import svgArc from "@stratakit/icons/arc.svg";
+import svgAutomagic from "@stratakit/icons/automagic.svg";
 import VerticalToolRail from "./VerticalToolRail.jsx";
 
 /**
@@ -35,6 +36,14 @@ export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSel
       shortcutMobile: "Select Circle, then tap",
       isActive: activeTool === "circle",
       onClick: () => onSelectTool?.("circle")
+    },
+    {
+      id: "random-cut",
+      label: "Random cut",
+      tooltip: "Random cut",
+      icon: svgAutomagic,
+      buttonId: "randomCutBtn",
+      onClick: () => onRandomCut?.()
     }
   ];
 
@@ -50,7 +59,6 @@ export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSel
           <button id="resetBtn" type="button" onClick={onNew}>New</button>
           <button id="undoBtn" type="button" onClick={onUndo} disabled={!canUndo}>Undo</button>
           <button id="redoBtn" type="button" onClick={onRedo} disabled={!canRedo}>Redo</button>
-          <button id="randomCutBtn" type="button" onClick={onRandomCut}>Random cut</button>
         </span>
         <span className="panelZoom" data-zoom-badge-for="foldedCanvas" />
       </div>
