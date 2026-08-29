@@ -2,13 +2,14 @@ import svgDraw from "@stratakit/icons/draw.svg";
 import svgLine from "@stratakit/icons/line.svg";
 import svgArc from "@stratakit/icons/arc.svg";
 import svgAutomagic from "@stratakit/icons/automagic.svg";
+import svgMeasureRadius from "@stratakit/icons/measure-radius.svg";
 import VerticalToolRail from "./VerticalToolRail.tsx";
 
 /**
  * The "Edit" panel: hosts the folded-paper SVG (built by the engine into
  * `hostRef`) plus the cut-history toolbar and zoom badge.
  */
-export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSelectTool, onNew, onUndo, onRedo, onRandomCut }) {
+export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUndo, canRedo, onSelectTool, onToggleCircleResize, onNew, onUndo, onRedo, onRandomCut }) {
   const tools = [
     {
       id: "freehand",
@@ -32,11 +33,21 @@ export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSel
       label: "Circle tool",
       icon: svgArc,
       tooltip: "Circle tool",
-      shortcutDesktop: "Ctrl + wheel + click",
-      shortcutMobile: "Pinch to resize, then tap",
+      shortcutDesktop: "Ctrl + wheel to resize, click to cut",
+      shortcutMobile: "Use Resize circle, pinch, then tap",
       isActive: activeTool === "circle",
       onClick: () => onSelectTool?.("circle")
     },
+    ...(activeTool === "circle" ? [{
+      id: "resize-circle",
+      label: "Resize circle",
+      icon: svgMeasureRadius,
+      tooltip: "Resize circle",
+      shortcutDesktop: "Ctrl + wheel",
+      shortcutMobile: "Tap to toggle pinch resizing",
+      isActive: circleResizeMode,
+      onClick: () => onToggleCircleResize?.()
+    }] : []),
     {
       id: "random-cut",
       label: "Random cut",

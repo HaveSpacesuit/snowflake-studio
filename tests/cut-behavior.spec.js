@@ -693,6 +693,31 @@ test.describe("snowflake cut validity", () => {
     expect(status).toContain("Circle cut applied");
   });
 
+  test("circle tool keeps the wheel available for zoom", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    await wheelZoom(page, "#foldedCanvas", -800);
+    expect(await zoomScale(page, "#foldedCanvas")).toBeGreaterThan(1);
+  });
+
+  test("circle tool uses Ctrl plus wheel to adjust radius", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    const initialStatus = (await page.locator("#status").textContent()) || "";
+    const initialRadius = Number(/radius \((\d+) px\)/.exec(initialStatus)?.[1]);
+    expect(Number.isFinite(initialRadius)).toBe(true);
+
+    await page.locator("#foldedCanvas").hover();
+    await page.keyboard.down("Control");
+    await page.mouse.wheel(0, -800);
+    await page.keyboard.up("Control");
+
+    expect(await zoomScale(page, "#foldedCanvas")).toBe(1);
+    await expect(page.locator("#status")).toContainText(`radius (${initialRadius + 2} px)`);
+  });
+
   test("circle tool stamps a fully enclosed circular hole", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");
@@ -714,9 +739,11 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator("#randomCutBtn")).not.toBeFocused();
   });
 
-  test("touch pinch resizes the circle preview", async ({ page }) => {
+  test("touch pinch resizes the circle preview when resize mode is enabled", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");
+    await toolButton(page, "Resize circle").click();
+    await expect(toolButton(page, "Resize circle")).toHaveAttribute("aria-pressed", "true");
 
     await page.locator("#foldedCanvas").evaluate((canvas) => {
       canvas.setPointerCapture = () => {};

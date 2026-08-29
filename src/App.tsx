@@ -14,7 +14,7 @@ export default function App() {
   const unfoldedHostRef = useRef(null);
   const backgroundCanvasRef = useRef(null);
 
-  const { engineRef, status, setStatus, history, activeTool, options, canSave } = useStudioEngine({
+  const { engineRef, status, setStatus, history, activeTool, circleResizeMode, options, canSave } = useStudioEngine({
     foldedHostRef,
     unfoldedHostRef,
     backgroundCanvasRef
@@ -59,9 +59,11 @@ export default function App() {
           <EditPanel
             hostRef={foldedHostRef}
             activeTool={activeTool}
+            circleResizeMode={circleResizeMode}
             canUndo={history.canUndo}
             canRedo={history.canRedo}
             onSelectTool={(toolId) => engineRef.current?.setActiveTool(toolId)}
+            onToggleCircleResize={() => engineRef.current?.toggleCircleResizeMode()}
             onNew={handleNew}
             onUndo={() => engineRef.current?.undo()}
             onRedo={() => engineRef.current?.redo()}

@@ -12,6 +12,7 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
   const [status, setStatus] = useState("Ready");
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
   const [activeTool, setActiveTool] = useState("freehand");
+  const [circleResizeMode, setCircleResizeMode] = useState(false);
   const [options, setOptions] = useState(() => normalizeSnowflakeOptions(null));
   const [canSave, setCanSave] = useState(false);
 
@@ -23,6 +24,7 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
       onStatus: setStatus,
       onHistory: setHistory,
       onToolChange: setActiveTool,
+      onCircleResizeMode: setCircleResizeMode,
       onOptions: setOptions,
       onCanSave: setCanSave
     });
@@ -36,5 +38,5 @@ export function useStudioEngine({ foldedHostRef, unfoldedHostRef, backgroundCanv
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { engineRef, status, setStatus, history, activeTool, options, canSave };
+  return { engineRef, status, setStatus, history, activeTool, circleResizeMode, options, canSave };
 }

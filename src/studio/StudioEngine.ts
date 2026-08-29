@@ -95,7 +95,8 @@ export function createStudioEngine(config) {
     onHistory = noop,
     onOptions = noop,
     onCanSave = noop,
-    onToolChange = noop
+    onToolChange = noop,
+    onCircleResizeMode = noop
   } = config;
 
   const backgroundCtx = backgroundCanvas.getContext("2d");
@@ -126,6 +127,7 @@ export function createStudioEngine(config) {
     redoStack: [],
     livePreview: { mode: "none", text: "Ready" },
     activeTool: TOOL_FREEHAND,
+    circleResizeMode: false,
     unfoldedSpinPaused: false,
     unfoldedSpinStartTime: performance.now(),
     unfoldedSpinAngle: 0,
@@ -334,6 +336,18 @@ export function createStudioEngine(config) {
     onToolChange(state.activeTool);
   }
 
+  function syncCircleResizeMode() {
+    onCircleResizeMode(state.circleResizeMode);
+  }
+
+  function setCircleResizeMode(enabled) {
+    const nextMode = state.activeTool === TOOL_CIRCLE && Boolean(enabled);
+    if (nextMode === state.circleResizeMode) return false;
+    state.circleResizeMode = nextMode;
+    syncCircleResizeMode();
+    return true;
+  }
+
   function setActiveTool(nextTool, { announce = false } = {}) {
     const normalized = typeof nextTool === "string" ? nextTool.toLowerCase() : "";
     if (!TOOL_IDS.has(normalized) || normalized === state.activeTool) return false;
@@ -342,9 +356,10 @@ export function createStudioEngine(config) {
     state.touchStraightArmed = false;
 
     if (normalized !== TOOL_CIRCLE) {
+      setCircleResizeMode(false);
       clearCirclePreview();
     } else if (announce) {
-      setStatus(`Circle mode enabled: adjust radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`);
+      setStatus(`Circle mode enabled: Ctrl + wheel adjusts radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`);
     }
 
     syncToolState();
@@ -1255,7 +1270,7 @@ export function createStudioEngine(config) {
     if (distNow < 4) return;
 
     tState.pinchActive = true;
-    tState.circleResizeActive = svg === foldedSvg && state.activeTool === TOOL_CIRCLE;
+    tState.circleResizeActive = svg === foldedSvg && state.activeTool === TOOL_CIRCLE && state.circleResizeMode;
     tState.startDistance = distNow;
     tState.startCircleRadius = state.circleCutRadius;
     tState.startCenter = touchCenter(pointers[0], pointers[1]);
@@ -1648,7 +1663,7 @@ export function createStudioEngine(config) {
   }
 
   function onFoldedWheel(evt) {
-    if (!state.drawing && isCircleToolActive(evt)) {
+    if (!state.drawing && state.activeTool === TOOL_CIRCLE && evt.ctrlKey && !evt.metaKey) {
       evt.preventDefault();
       const direction = evt.deltaY < 0 ? 1 : -1;
       state.circleCutRadius = clamp(state.circleCutRadius + direction * 2, CIRCLE_RADIUS_MIN, CIRCLE_RADIUS_MAX);
@@ -1778,6 +1793,7 @@ export function createStudioEngine(config) {
     saveToCollection: addCurrentSnowflakeToCollection,
     setOptions: setSnowflakeOptions,
     setActiveTool: (toolId) => setActiveTool(toolId, { announce: true }),
+    toggleCircleResizeMode: () => setCircleResizeMode(!state.circleResizeMode),
     getActiveTool: () => state.activeTool,
     getOptions: () => normalizeSnowflakeOptions(state.options),
     hasChanges: hasSnowflakeChanges
