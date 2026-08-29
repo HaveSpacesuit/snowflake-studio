@@ -91,6 +91,10 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
         const desktopHint = typeof tool.shortcutDesktop === "string" ? tool.shortcutDesktop.trim() : "";
         const mobileHint = typeof tool.shortcutMobile === "string" ? tool.shortcutMobile.trim() : "";
         const hasHint = desktopHint.length > 0 || mobileHint.length > 0;
+        const handleToolClick = (event) => {
+          tool.onClick?.(event);
+          if (event.detail > 0) event.currentTarget.blur();
+        };
         return (
           <button
             key={tool.id}
@@ -102,7 +106,7 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
             ].filter(Boolean).join(" ")}
             aria-label={tool.label}
             aria-pressed={tool.isActive ? "true" : "false"}
-            onClick={tool.onClick}
+            onClick={handleToolClick}
             onTouchStart={() => onToolTouchStart(tool)}
             onTouchEnd={() => onToolTouchEnd(tool)}
             onTouchCancel={onToolTouchCancel}

@@ -625,6 +625,16 @@ test.describe("snowflake cut validity", () => {
     expect(status).toContain("Circle cut applied");
   });
 
+  test("random cut does not retain pointer focus", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    await page.locator("#randomCutBtn").click();
+
+    await expect(toolButton(page, "Circle tool")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("#randomCutBtn")).not.toBeFocused();
+  });
+
   test("touch pinch resizes the circle preview", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");
