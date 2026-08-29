@@ -359,7 +359,7 @@ export function createStudioEngine(config) {
       setCircleResizeMode(false);
       clearCirclePreview();
     } else if (announce) {
-      setStatus(`Circle mode enabled: Ctrl + wheel adjusts radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`);
+      setStatus(`Circle mode enabled: Ctrl/Command + wheel adjusts radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`);
     }
 
     syncToolState();
@@ -368,7 +368,7 @@ export function createStudioEngine(config) {
   }
 
   function isCircleModeModifierActive(evt) {
-    return !!evt && evt.pointerType !== "touch" && evt.ctrlKey && !evt.metaKey;
+    return !!evt && evt.pointerType !== "touch" && (evt.ctrlKey || evt.metaKey);
   }
 
   function isCircleToolActive(evt) {
@@ -1058,8 +1058,7 @@ export function createStudioEngine(config) {
   }
 
   function handleHistoryShortcut(evt) {
-    const isMac = navigator.platform.toLowerCase().includes("mac");
-    const modifierPressed = isMac ? evt.metaKey : evt.ctrlKey;
+    const modifierPressed = evt.ctrlKey || evt.metaKey;
     if (!modifierPressed || evt.altKey) return;
     const key = evt.key.toLowerCase();
     if (key === "z" && !evt.shiftKey) {
@@ -1663,7 +1662,7 @@ export function createStudioEngine(config) {
   }
 
   function onFoldedWheel(evt) {
-    if (!state.drawing && state.activeTool === TOOL_CIRCLE && evt.ctrlKey && !evt.metaKey) {
+    if (!state.drawing && state.activeTool === TOOL_CIRCLE && isCircleModeModifierActive(evt)) {
       evt.preventDefault();
       const direction = evt.deltaY < 0 ? 1 : -1;
       state.circleCutRadius = clamp(state.circleCutRadius + direction * 2, CIRCLE_RADIUS_MIN, CIRCLE_RADIUS_MAX);
@@ -1688,7 +1687,7 @@ export function createStudioEngine(config) {
   }
 
   function onDocumentKeyUp(evt) {
-    if (evt.key === "Control" && state.circleHoverPoint && !state.drawing && state.activeTool !== TOOL_CIRCLE) {
+    if ((evt.key === "Control" || evt.key === "Meta") && state.circleHoverPoint && !state.drawing && state.activeTool !== TOOL_CIRCLE) {
       clearCirclePreview();
       render();
     }

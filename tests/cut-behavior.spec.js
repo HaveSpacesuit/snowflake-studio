@@ -537,6 +537,25 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator("#status")).toHaveText("Redid last cut.");
   });
 
+  test("Command shortcuts undo and redo cuts", async ({ page }) => {
+    await reset(page);
+
+    const status = await drawPath(page, [
+      { x: 238, y: 100 },
+      { x: 250, y: 145 },
+      { x: 283, y: 205 },
+      { x: 318, y: 250 },
+      { x: 360, y: 255 }
+    ]);
+    expect(statusIsAccepted(status)).toBe(true);
+
+    await page.keyboard.press("Meta+z");
+    await expect(page.locator("#status")).toHaveText("Undid last cut.");
+
+    await page.keyboard.press("Meta+Shift+z");
+    await expect(page.locator("#status")).toHaveText("Redid last cut.");
+  });
+
   test("clicking the unfolded snowflake toggles spin pause", async ({ page }) => {
     await reset(page);
 
@@ -713,6 +732,23 @@ test.describe("snowflake cut validity", () => {
     await page.keyboard.down("Control");
     await page.mouse.wheel(0, -800);
     await page.keyboard.up("Control");
+
+    expect(await zoomScale(page, "#foldedCanvas")).toBe(1);
+    await expect(page.locator("#status")).toContainText(`radius (${initialRadius + 2} px)`);
+  });
+
+  test("circle tool uses Command plus wheel to adjust radius", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    const initialStatus = (await page.locator("#status").textContent()) || "";
+    const initialRadius = Number(/radius \((\d+) px\)/.exec(initialStatus)?.[1]);
+    expect(Number.isFinite(initialRadius)).toBe(true);
+
+    await page.locator("#foldedCanvas").hover();
+    await page.keyboard.down("Meta");
+    await page.mouse.wheel(0, -800);
+    await page.keyboard.up("Meta");
 
     expect(await zoomScale(page, "#foldedCanvas")).toBe(1);
     await expect(page.locator("#status")).toContainText(`radius (${initialRadius + 2} px)`);

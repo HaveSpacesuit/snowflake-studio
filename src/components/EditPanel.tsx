@@ -33,7 +33,7 @@ export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUn
       label: "Circle tool",
       icon: svgArc,
       tooltip: "Circle tool",
-      shortcutDesktop: "Ctrl + wheel to resize, click to cut",
+      shortcutDesktop: "Ctrl/Command + wheel to resize, click to cut",
       shortcutMobile: "Use Resize circle, pinch, then tap",
       isActive: activeTool === "circle",
       onClick: () => onSelectTool?.("circle")
@@ -43,7 +43,7 @@ export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUn
       label: "Resize circle",
       icon: svgMeasureRadius,
       tooltip: "Resize circle",
-      shortcutDesktop: "Ctrl + wheel",
+      shortcutDesktop: "Ctrl/Command + wheel",
       shortcutMobile: "Tap to toggle pinch resizing",
       isActive: circleResizeMode,
       onClick: () => onToggleCircleResize?.()
