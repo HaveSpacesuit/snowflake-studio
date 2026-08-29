@@ -283,6 +283,48 @@ test.describe("snowflake cut validity", () => {
     expect(after).toBeLessThan(before);
   });
 
+  test("random cut uses the selected straight tool", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Straight tool");
+
+    const before = await whitePixelCount(page);
+    await page.locator("#randomCutBtn").click();
+    const status = (await page.locator("#status").textContent()) || "";
+    const after = await whitePixelCount(page);
+
+    expect(statusIsAccepted(status)).toBe(true);
+    expect(after).toBeLessThan(before);
+  });
+
+  test("random straight cuts continue to use remaining paper", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Straight tool");
+
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const before = await whitePixelCount(page);
+      await page.locator("#randomCutBtn").click();
+      const status = (await page.locator("#status").textContent()) || "";
+      const after = await whitePixelCount(page);
+
+      expect(statusIsAccepted(status)).toBe(true);
+      expect(after).toBeLessThan(before);
+    }
+  });
+
+  test("random cut uses the selected circle tool", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    const before = await whitePixelCount(page);
+    await page.locator("#randomCutBtn").click();
+    const status = (await page.locator("#status").textContent()) || "";
+    const after = await whitePixelCount(page);
+
+    expect(status).toMatch(/^Circle cut applied/);
+    expect(after).toBeLessThan(before);
+    expect((before - after) / before).toBeLessThanOrEqual(0.25);
+  });
+
   test("random cut removes no more than 25%", async ({ page }) => {
     await reset(page);
 
@@ -623,6 +665,17 @@ test.describe("snowflake cut validity", () => {
     const status = (await page.locator("#status").textContent()) || "";
 
     expect(status).toContain("Circle cut applied");
+  });
+
+  test("circle tool stamps a fully enclosed circular hole", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    await clickFoldedPoint(page, { x: 230, y: 220 });
+    await expect(page.locator("#status")).toContainText("Circle cut applied");
+
+    const pathData = await page.locator('#foldedCanvas [data-role="paper-shape"]').getAttribute("d");
+    expect((pathData || "").match(/M /g)?.length).toBeGreaterThanOrEqual(2);
   });
 
   test("random cut does not retain pointer focus", async ({ page }) => {

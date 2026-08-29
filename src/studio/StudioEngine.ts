@@ -26,6 +26,7 @@ import {
   BG_FLAKE_COUNT,
   BG_FLAKE_MAX_SIZE,
   BG_FLAKE_MIN_SIZE,
+  MAX_RANDOM_CUT_REMOVAL_FRACTION,
   MAX_VIEW_SCALE,
   MIN_VIEW_SCALE
 } from "../constants.ts";
@@ -403,9 +404,15 @@ export function createStudioEngine(config) {
     return false;
   }
 
+  function isValidCircleCut(center, radius) {
+    const fullyContained = pointInGeom(center, state.paperGeom) &&
+      distanceToBoundary(center, state.paperGeom) >= radius - 1.2;
+    return fullyContained || circleIntersectsPaperEdge(center, radius);
+  }
+
   function updateCirclePreview(cursorPt, announce = true) {
     const circleCenter = getCircleCenterFromCursor(cursorPt);
-    const valid = circleIntersectsPaperEdge(circleCenter, state.circleCutRadius);
+    const valid = isValidCircleCut(circleCenter, state.circleCutRadius);
     state.circleHoverPoint = cursorPt;
     state.currentCut = buildCirclePreviewPoints(cursorPt);
     state.lockedCut = null;
@@ -413,7 +420,7 @@ export function createStudioEngine(config) {
       mode: valid ? "circle" : "invalid",
       text: valid
         ? `Circle mode: adjust radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`
-        : `Invalid circle: must intersect an edge (radius ${Math.round(state.circleCutRadius)} px).`
+        : `Invalid circle: must overlap the folded paper (radius ${Math.round(state.circleCutRadius)} px).`
     };
     if (announce) setStatus(state.livePreview.text);
   }
@@ -429,28 +436,28 @@ export function createStudioEngine(config) {
     }
   }
 
-  function applyCircleCutAtCursor(cursorPt) {
+  function applyCircleCutAtCursor(cursorPt, maxRemovalFraction = null, radius = state.circleCutRadius) {
     if (!state.paperGeom || state.paperGeom.length === 0) {
       setStatus("No paper remaining for a circle cut.");
-      return;
+      return false;
     }
 
     const beforeGeom = cloneGeom(state.paperGeom);
     const beforeArea = geomArea(beforeGeom);
     const circleCenter = getCircleCenterFromCursor(cursorPt);
 
-    if (!circleIntersectsPaperEdge(circleCenter, state.circleCutRadius)) {
-      setStatus("Circle cut must intersect a folded-paper edge.");
+    if (!isValidCircleCut(circleCenter, radius)) {
+      setStatus("Circle cut must overlap the folded paper.");
       updateCirclePreview(cursorPt, false);
       render();
-      return;
+      return false;
     }
 
-    const ring = buildCircleRing(circleCenter, state.circleCutRadius);
+    const ring = buildCircleRing(circleCenter, radius);
     const cutGeom = normalizeGeom([[ring]]);
     if (cutGeom.length === 0) {
       setStatus("Circle cut failed due to geometry precision.");
-      return;
+      return false;
     }
 
     let nextGeom;
@@ -459,18 +466,22 @@ export function createStudioEngine(config) {
     } catch (err) {
       console.error("Circle cut boolean failed", err);
       setStatus("Circle cut failed due to geometry precision.");
-      return;
+      return false;
     }
 
     if (!nextGeom || nextGeom.length === 0) {
       setStatus("Circle cut removed all paper. Try a smaller radius.");
-      return;
+      return false;
     }
 
     const afterArea = geomArea(nextGeom);
     if (!Number.isFinite(afterArea) || afterArea >= beforeArea - 0.0001) {
       setStatus("Circle cut must overlap the folded paper to remove area.");
-      return;
+      return false;
+    }
+
+    if (maxRemovalFraction !== null && (beforeArea - afterArea) / beforeArea > maxRemovalFraction) {
+      return false;
     }
 
     pushUndoSnapshot();
@@ -486,12 +497,43 @@ export function createStudioEngine(config) {
     enqueueFallingCutAnimation(removedGeom);
 
     setStatus(
-      `Circle cut applied (radius ${Math.round(state.circleCutRadius)} px). Remaining area: ${Math.round(afterArea)} px`
+      `Circle cut applied (radius ${Math.round(radius)} px). Remaining area: ${Math.round(afterArea)} px`
     );
     updateHistoryControls();
 
     updateCirclePreview(cursorPt, false);
     render();
+    return true;
+  }
+
+  function applyRandomCircleCut(maxAttempts = 420) {
+    const bounds = getGeomBounds(state.paperGeom);
+    if (!bounds) return false;
+    const maxRadius = Math.min(CIRCLE_RADIUS_MAX, Math.max(CIRCLE_RADIUS_MIN, Math.min(bounds.width, bounds.height) * 0.22));
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const radius = rand(CIRCLE_RADIUS_MIN, maxRadius);
+      const preferContained = attempt % 2 === 0;
+      const padding = preferContained ? 0 : radius;
+      const cursorPt = {
+        x: rand(bounds.minX - padding, bounds.maxX + padding),
+        y: rand(bounds.minY - padding, bounds.maxY + padding)
+      };
+      const fullyContained = pointInGeom(cursorPt, state.paperGeom) &&
+        distanceToBoundary(cursorPt, state.paperGeom) >= radius - 1.2;
+      if (preferContained ? !fullyContained : !circleIntersectsPaperEdge(cursorPt, radius)) continue;
+
+      if (applyCircleCutAtCursor(cursorPt, MAX_RANDOM_CUT_REMOVAL_FRACTION, radius)) {
+        state.circleHoverPoint = null;
+        state.currentCut = [];
+        state.lockedCut = null;
+        state.livePreview = { mode: "none", text: "Ready" };
+        render();
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // -------------------------------------------------------------------------
@@ -1012,7 +1054,19 @@ export function createStudioEngine(config) {
       return;
     }
 
-    const randomCut = generateRandomValidCut(state.paperGeom, getCurrentOuterBase(), 420);
+    if (state.activeTool === TOOL_CIRCLE) {
+      if (!applyRandomCircleCut()) {
+        setStatus("Could not find a valid circle cut. Try again.");
+      }
+      return;
+    }
+
+    const randomCut = generateRandomValidCut(
+      state.paperGeom,
+      getCurrentOuterBase(),
+      420,
+      state.activeTool
+    );
     if (!randomCut) {
       setStatus("Could not find a valid random cut under 25% removal. Try again.");
       return;

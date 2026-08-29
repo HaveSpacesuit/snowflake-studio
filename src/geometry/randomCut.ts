@@ -5,7 +5,7 @@
 
 import { APEX, FOLD_BASE, MAX_RANDOM_CUT_REMOVAL_FRACTION } from "../constants.ts";
 import { rand } from "../utils/math.ts";
-import { getGeomBounds } from "./polygon.ts";
+import { getGeomBounds, pointInGeom } from "./polygon.ts";
 import { getCutRemovalFraction, sanitizeCutPath, validateCut } from "./cuts.ts";
 
 function edgePoint(a, b, t) {
@@ -29,7 +29,7 @@ function sampleCubic(p0, p1, p2, p3, segments) {
   return out;
 }
 
-export function generateRandomValidCut(paperGeom, outerBase, maxAttempts = 140) {
+export function generateRandomValidCut(paperGeom, outerBase, maxAttempts = 140, tool = "freehand") {
   const bounds = getGeomBounds(paperGeom);
   if (!bounds) return null;
 
@@ -37,6 +37,27 @@ export function generateRandomValidCut(paperGeom, outerBase, maxAttempts = 140) 
   const cy = (bounds.minY + bounds.maxY) / 2;
   const span = Math.max(40, Math.max(bounds.width, bounds.height));
   const radius = span * 1.2 + 44;
+
+  function findRandomInteriorPoint() {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const point = {
+        x: rand(bounds.minX, bounds.maxX),
+        y: rand(bounds.minY, bounds.maxY)
+      };
+      if (pointInGeom(point, paperGeom)) return point;
+    }
+    return null;
+  }
+
+  function makeStraightCandidate() {
+    const angle = rand(0, Math.PI * 2);
+    const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+    const anchor = findRandomInteriorPoint() || { x: cx, y: cy };
+    return [
+      { x: anchor.x - direction.x * radius, y: anchor.y - direction.y * radius },
+      { x: anchor.x + direction.x * radius, y: anchor.y + direction.y * radius }
+    ];
+  }
 
   function makeCrossEdgeCandidate() {
     const angle = rand(0, Math.PI * 2);
@@ -109,7 +130,9 @@ export function generateRandomValidCut(paperGeom, outerBase, maxAttempts = 140) 
   }
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const points = Math.random() < 0.45 ? makeSameEdgeCandidate() : makeCrossEdgeCandidate();
+    const points = tool === "straight"
+      ? makeStraightCandidate()
+      : Math.random() < 0.45 ? makeSameEdgeCandidate() : makeCrossEdgeCandidate();
 
     const validation = validateCut(sanitizeCutPath(points), paperGeom);
     if (
