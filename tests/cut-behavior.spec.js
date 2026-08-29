@@ -599,6 +599,32 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator('[data-zoom-badge-for="unfoldedCanvas"]')).toHaveText("Zoom: 10%");
   });
 
+  test("zoom reset controls restore each view independently", async ({ page }) => {
+    await reset(page);
+
+    const foldedReset = page.locator('[data-zoom-reset-for="foldedCanvas"]');
+    const unfoldedReset = page.locator('[data-zoom-reset-for="unfoldedCanvas"]');
+    await expect(foldedReset).toBeHidden();
+    await expect(unfoldedReset).toBeHidden();
+
+    await wheelZoom(page, "#foldedCanvas", -800);
+    await expect(foldedReset).toBeVisible();
+    await expect(unfoldedReset).toBeHidden();
+    await foldedReset.click();
+    expect(await zoomScale(page, "#foldedCanvas")).toBe(1);
+    expect(await zoomOffsets(page, "#foldedCanvas")).toEqual({ x: 0, y: 0 });
+    await expect(page.locator('[data-zoom-badge-for="foldedCanvas"]')).toHaveText("Zoom: 100%");
+    await expect(foldedReset).toBeHidden();
+
+    await wheelZoom(page, "#unfoldedCanvas", -800);
+    await expect(unfoldedReset).toBeVisible();
+    await unfoldedReset.click();
+    expect(await zoomScale(page, "#unfoldedCanvas")).toBe(1);
+    expect(await zoomOffsets(page, "#unfoldedCanvas")).toEqual({ x: 0, y: 0 });
+    await expect(page.locator('[data-zoom-badge-for="unfoldedCanvas"]')).toHaveText("Zoom: 100%");
+    await expect(unfoldedReset).toBeHidden();
+  });
+
   test("middle drag pans zoomed views but stays within bounds", async ({ page }) => {
     await reset(page);
 

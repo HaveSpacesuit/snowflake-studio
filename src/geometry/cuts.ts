@@ -119,8 +119,19 @@ function analyzeStroke(points, geom, step = 4) {
   return { transitions, insideLength };
 }
 
-export function validateCut(points, geom) {
+/** True when the stroke begins clearly inside the paper rather than off an edge. */
+function startsInsidePaper(points, geom, tolerance = 1.5) {
+  const start = points[0];
+  if (!pointInGeom(start, geom)) return false;
+  return distanceToBoundary(start, geom) > tolerance;
+}
+
+export function validateCut(points, geom, options = {}) {
   if (points.length < 2) return { valid: false, reason: "Cut too short." };
+
+  if (options.requireStartOutside && startsInsidePaper(points, geom)) {
+    return { valid: false, reason: "start the cut outside the paper." };
+  }
 
   const stroke = analyzeStroke(points, geom, 4);
   const edgeToEdge = stroke.transitions >= 2 && stroke.insideLength >= MIN_EDGE_INSIDE_LENGTH;
@@ -132,10 +143,13 @@ export function validateCut(points, geom) {
   return { valid: false, reason: "Invalid cut: start and end from edges." };
 }
 
-export function getLiveCutPreview(points, geom) {
+export function getLiveCutPreview(points, geom, options = {}) {
   if (points.length < 2) return { mode: "none", text: "Drawing..." };
   const raw = sanitizeCutPath(points.slice());
-  const result = validateCut(raw, geom);
+  if (options.requireStartOutside && startsInsidePaper(raw, geom)) {
+    return { mode: "invalid", text: "Start the cut outside the paper." };
+  }
+  const result = validateCut(raw, geom, options);
   if (result.valid && result.mode === "edge") return { mode: "edge", text: "Edge-to-edge ready: release to cut." };
   return { mode: "invalid", text: "Need an edge-to-edge cut." };
 }

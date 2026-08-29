@@ -60,7 +60,10 @@ export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSel
           <button id="undoBtn" type="button" onClick={onUndo} disabled={!canUndo}>Undo</button>
           <button id="redoBtn" type="button" onClick={onRedo} disabled={!canRedo}>Redo</button>
         </span>
-        <span className="panelZoom" data-zoom-badge-for="foldedCanvas" />
+        <span className="panelZoomControls">
+          <button type="button" data-zoom-reset-for="foldedCanvas" hidden>Reset</button>
+          <span className="panelZoom" data-zoom-badge-for="foldedCanvas" />
+        </span>
       </div>
     </div>
   );

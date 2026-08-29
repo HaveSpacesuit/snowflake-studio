@@ -109,6 +109,7 @@ export function createStudioEngine(config) {
   const foldedLayer = extractFoldedLayer(foldedSvg);
   const unfoldedLayer = extractUnfoldedLayer(unfoldedSvg);
   const zoomBadgeTargets = Array.from(document.querySelectorAll("[data-zoom-badge-for]"));
+  const zoomResetTargets = Array.from(document.querySelectorAll("[data-zoom-reset-for]"));
 
   const state = {
     drawing: false,
@@ -152,6 +153,7 @@ export function createStudioEngine(config) {
   let rafId = null;
   const documentListeners = [];
   const windowListeners = [];
+  const zoomResetListeners = [];
 
   function newTouchState() {
     return {
@@ -226,6 +228,8 @@ export function createStudioEngine(config) {
     svg.dataset.zoomOffsetY = view.offsetY.toFixed(2);
     const badge = zoomBadgeTargets.find((el) => el.getAttribute("data-zoom-badge-for") === svg.dataset.panelCanvas);
     if (badge && badge.textContent !== nextZoomText) badge.textContent = nextZoomText;
+    const resetButton = zoomResetTargets.find((el) => el.getAttribute("data-zoom-reset-for") === svg.dataset.panelCanvas);
+    if (resetButton) resetButton.toggleAttribute("hidden", Math.abs(view.scale - 1) < 0.0001);
   }
 
   function syncAllViewState() {
@@ -920,6 +924,10 @@ export function createStudioEngine(config) {
     return { applied: true, removedGeom: outcome.removedGeom };
   }
 
+  function cutValidationOptions() {
+    return { requireStartOutside: state.activeTool === TOOL_FREEHAND };
+  }
+
   function finalizeCut() {
     const input = state.lockedCut ? state.lockedCut.slice() : state.currentCut.slice();
     if (input.length < 2) {
@@ -928,12 +936,13 @@ export function createStudioEngine(config) {
       return;
     }
 
+    const options = cutValidationOptions();
     let cut = sanitizeCutPath(input);
-    let validation = validateCut(cut, state.paperGeom);
+    let validation = validateCut(cut, state.paperGeom, options);
 
     if (!validation.valid) {
       const snappedStart = snapCutEndsIfClose(cut, state.paperGeom, EDGE_START_SNAP_TOL);
-      const snappedStartValidation = validateCut(snappedStart, state.paperGeom);
+      const snappedStartValidation = validateCut(snappedStart, state.paperGeom, options);
       if (snappedStartValidation.valid) {
         cut = snappedStart;
         validation = snappedStartValidation;
@@ -942,7 +951,7 @@ export function createStudioEngine(config) {
 
     if (!validation.valid) {
       const snappedFinal = snapCutEndsIfClose(cut, state.paperGeom, EDGE_FINAL_TOL);
-      const snappedFinalValidation = validateCut(snappedFinal, state.paperGeom);
+      const snappedFinalValidation = validateCut(snappedFinal, state.paperGeom, options);
       if (snappedFinalValidation.valid) {
         cut = snappedFinal;
         validation = snappedFinalValidation;
@@ -959,7 +968,7 @@ export function createStudioEngine(config) {
     let prettified = false;
     const prettyCut = prettifyCutPath(cut);
     if (prettyCut.length >= 2) {
-      const prettyValidation = validateCut(prettyCut, state.paperGeom);
+      const prettyValidation = validateCut(prettyCut, state.paperGeom, options);
       if (prettyValidation.valid && prettyValidation.mode === validation.mode) {
         cut = prettyCut;
         validation = prettyValidation;
@@ -1198,6 +1207,12 @@ export function createStudioEngine(config) {
       syncViewState(svg, view);
       render();
     }
+  }
+
+  function resetZoom(svg, view) {
+    resetView(view);
+    syncViewState(svg, view);
+    render();
   }
 
   function handleMiddlePanPointerDown(evt, svg, view) {
@@ -1455,7 +1470,7 @@ export function createStudioEngine(config) {
     } else {
       addPointToCurrentCut(pt);
     }
-    state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom);
+    state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
 
     if (!isStraightModeActive(evt) && state.livePreview.mode === "edge") {
       if (cutPathLength(state.currentCut) >= EDGE_LOCK_MIN_PATH_LENGTH) {
@@ -1693,6 +1708,18 @@ export function createStudioEngine(config) {
     addSvgListener(unfoldedSvg, "wheel", onUnfoldedWheel, { passive: false });
     addSvgListener(unfoldedSvg, "contextmenu", preventDefault);
 
+    for (const button of zoomResetTargets) {
+      const handler = () => {
+        if (button.getAttribute("data-zoom-reset-for") === "foldedCanvas") {
+          resetZoom(foldedSvg, state.foldedView);
+        } else if (button.getAttribute("data-zoom-reset-for") === "unfoldedCanvas") {
+          resetZoom(unfoldedSvg, state.unfoldedView);
+        }
+      };
+      button.addEventListener("click", handler);
+      zoomResetListeners.push([button, handler]);
+    }
+
     document.addEventListener("keydown", onDocumentKeyDown);
     documentListeners.push(["keydown", onDocumentKeyDown]);
     document.addEventListener("keyup", onDocumentKeyUp);
@@ -1731,6 +1758,8 @@ export function createStudioEngine(config) {
     for (const [type, handler] of windowListeners) window.removeEventListener(type, handler);
     documentListeners.length = 0;
     windowListeners.length = 0;
+    for (const [button, handler] of zoomResetListeners) button.removeEventListener("click", handler);
+    zoomResetListeners.length = 0;
     if (foldedSvg.parentNode) foldedSvg.parentNode.removeChild(foldedSvg);
     if (unfoldedSvg.parentNode) unfoldedSvg.parentNode.removeChild(unfoldedSvg);
   }

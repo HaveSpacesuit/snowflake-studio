@@ -15,7 +15,10 @@ export default function PreviewPanel({ hostRef, canSave, onSave, onExport, onOpt
           <button id="exportSvgBtn" type="button" onClick={onExport}>Export SVG</button>
           <button id="optionsBtn" type="button" aria-haspopup="dialog" onClick={onOptions}>Options</button>
         </span>
-        <span className="panelZoom" data-zoom-badge-for="unfoldedCanvas" />
+        <span className="panelZoomControls">
+          <button type="button" data-zoom-reset-for="unfoldedCanvas" hidden>Reset</button>
+          <span className="panelZoom" data-zoom-badge-for="unfoldedCanvas" />
+        </span>
       </div>
     </div>
   );
