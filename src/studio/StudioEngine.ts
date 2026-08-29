@@ -156,7 +156,9 @@ export function createStudioEngine(config) {
     return {
       pointers: new Map(),
       pinchActive: false,
+      circleResizeActive: false,
       startDistance: 0,
+      startCircleRadius: CIRCLE_RADIUS_DEFAULT,
       startCenter: { x: 0, y: 0 },
       startScale: 1,
       startOffsetX: 0,
@@ -337,7 +339,7 @@ export function createStudioEngine(config) {
     if (normalized !== TOOL_CIRCLE) {
       clearCirclePreview();
     } else if (announce) {
-      setStatus(`Circle mode enabled: wheel sets radius (${Math.round(state.circleCutRadius)} px), click to cut.`);
+      setStatus(`Circle mode enabled: adjust radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`);
     }
 
     syncToolState();
@@ -410,7 +412,7 @@ export function createStudioEngine(config) {
     state.livePreview = {
       mode: valid ? "circle" : "invalid",
       text: valid
-        ? `Circle mode: wheel sets radius (${Math.round(state.circleCutRadius)} px), click to cut.`
+        ? `Circle mode: adjust radius (${Math.round(state.circleCutRadius)} px), then apply the cut.`
         : `Invalid circle: must intersect an edge (radius ${Math.round(state.circleCutRadius)} px).`
     };
     if (announce) setStatus(state.livePreview.text);
@@ -1184,7 +1186,9 @@ export function createStudioEngine(config) {
     if (distNow < 4) return;
 
     tState.pinchActive = true;
+    tState.circleResizeActive = svg === foldedSvg && state.activeTool === TOOL_CIRCLE;
     tState.startDistance = distNow;
+    tState.startCircleRadius = state.circleCutRadius;
     tState.startCenter = touchCenter(pointers[0], pointers[1]);
     tState.startScale = view.scale;
     tState.startOffsetX = view.offsetX;
@@ -1206,6 +1210,17 @@ export function createStudioEngine(config) {
     const distNow = touchDistance(pointers[0], pointers[1]);
     if (distNow < 4) return false;
 
+    if (tState.circleResizeActive) {
+      state.circleCutRadius = clamp(
+        tState.startCircleRadius * (distNow / tState.startDistance),
+        CIRCLE_RADIUS_MIN,
+        CIRCLE_RADIUS_MAX
+      );
+      if (state.circleHoverPoint) updateCirclePreview(state.circleHoverPoint);
+      render();
+      return true;
+    }
+
     const nextScale = clamp(tState.startScale * (distNow / tState.startDistance), MIN_VIEW_SCALE, MAX_VIEW_SCALE);
     const worldX = (tState.startCenter.x - tState.startOffsetX) / tState.startScale;
     const worldY = (tState.startCenter.y - tState.startOffsetY) / tState.startScale;
@@ -1222,6 +1237,7 @@ export function createStudioEngine(config) {
   function clearTouchPointers(tState) {
     tState.pointers.clear();
     tState.pinchActive = false;
+    tState.circleResizeActive = false;
     tState.startDistance = 0;
   }
 
@@ -1406,6 +1422,7 @@ export function createStudioEngine(config) {
       tState.pointers.delete(evt.pointerId);
       if (tState.pointers.size < 2) {
         tState.pinchActive = false;
+        tState.circleResizeActive = false;
         tState.startDistance = 0;
       }
       if (wasPinch && !state.drawing) {
@@ -1480,6 +1497,7 @@ export function createStudioEngine(config) {
       tState.pointers.delete(evt.pointerId);
       if (tState.pointers.size < 2) {
         tState.pinchActive = false;
+        tState.circleResizeActive = false;
         tState.startDistance = 0;
       }
     }
@@ -1537,6 +1555,7 @@ export function createStudioEngine(config) {
       tState.pointers.delete(evt.pointerId);
       if (tState.pointers.size < 2) {
         tState.pinchActive = false;
+        tState.circleResizeActive = false;
         tState.startDistance = 0;
       }
     }

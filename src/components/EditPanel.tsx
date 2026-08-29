@@ -33,7 +33,7 @@ export default function EditPanel({ hostRef, activeTool, canUndo, canRedo, onSel
       icon: svgArc,
       tooltip: "Circle tool",
       shortcutDesktop: "Ctrl + wheel + click",
-      shortcutMobile: "Select Circle, then tap",
+      shortcutMobile: "Pinch to resize, then tap",
       isActive: activeTool === "circle",
       onClick: () => onSelectTool?.("circle")
     },

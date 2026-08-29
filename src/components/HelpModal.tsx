@@ -62,6 +62,7 @@ export default function HelpModal({ open, onClose }) {
               <li>Use the Edit toolbar to pick <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> mode.</li>
               <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
               <li><strong>Long-press</strong> on the Edit panel to arm straight-line mode, then drag for your next touch cut.</li>
+              <li>In <strong>Circle</strong> mode, <strong>pinch</strong> on the Edit panel to resize the circle, then tap to apply the cut.</li>
               <li><strong>New</strong>, <strong>Undo</strong>, and <strong>Redo</strong> manage your cut history.</li>
               <li><strong>Random cut</strong> adds a valid example cut for you.</li>
               <li><strong>Export SVG</strong> downloads the current snowflake as a vector file.</li>

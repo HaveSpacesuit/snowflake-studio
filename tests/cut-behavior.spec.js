@@ -624,4 +624,30 @@ test.describe("snowflake cut validity", () => {
 
     expect(status).toContain("Circle cut applied");
   });
+
+  test("touch pinch resizes the circle preview", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Circle tool");
+
+    await page.locator("#foldedCanvas").evaluate((canvas) => {
+      canvas.setPointerCapture = () => {};
+      canvas.releasePointerCapture = () => {};
+      const rect = canvas.getBoundingClientRect();
+      const dispatchTouch = (type, pointerId, x, y) => {
+        canvas.dispatchEvent(new PointerEvent(type, {
+          bubbles: true,
+          pointerId,
+          pointerType: "touch",
+          clientX: rect.left + x,
+          clientY: rect.top + y
+        }));
+      };
+
+      dispatchTouch("pointerdown", 1, rect.width * 0.45, rect.height * 0.5);
+      dispatchTouch("pointerdown", 2, rect.width * 0.55, rect.height * 0.5);
+      dispatchTouch("pointermove", 2, rect.width * 0.65, rect.height * 0.5);
+    });
+
+    await expect(page.locator("#status")).toContainText("radius (68 px)");
+  });
 });
