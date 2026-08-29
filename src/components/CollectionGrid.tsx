@@ -1,4 +1,4 @@
-import CollectionTile from "./CollectionTile.jsx";
+import CollectionTile from "./CollectionTile.tsx";
 
 /** The collection grid, or an empty-state placeholder when nothing is saved. */
 export default function CollectionGrid({ items, onEdit, onDelete }) {

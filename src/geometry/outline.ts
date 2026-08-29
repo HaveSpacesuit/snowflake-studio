@@ -3,8 +3,8 @@
 // boundaries so each can be stroked with its own colour and width.
 
 import polygonClipping from "polygon-clipping";
-import { OUTLINE_GRID } from "../constants.js";
-import { normalizeGeom, pointsToPath } from "./polygon.js";
+import { OUTLINE_GRID } from "../constants.ts";
+import { normalizeGeom, pointsToPath } from "./polygon.ts";
 
 export function buildUnfoldedOutlinePaths(geom) {
   if (!geom || geom.length === 0) return { outerPath: "", holePath: "" };
@@ -24,7 +24,15 @@ export function buildUnfoldedOutlinePaths(geom) {
       )
     );
 
-    outlineGeom = snapped.length > 0 ? normalizeGeom(polygonClipping.union(...snapped)) : geom;
+    if (snapped.length > 0) {
+      let merged = snapped[0];
+      for (let i = 1; i < snapped.length; i += 1) {
+        merged = polygonClipping.union(merged, snapped[i]) as any;
+      }
+      outlineGeom = normalizeGeom(merged);
+    } else {
+      outlineGeom = geom;
+    }
   } catch (err) {
     console.error("Outline union failed", err);
     outlineGeom = geom;

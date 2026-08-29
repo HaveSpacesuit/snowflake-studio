@@ -2,7 +2,7 @@ import svgDraw from "@stratakit/icons/draw.svg";
 import svgLine from "@stratakit/icons/line.svg";
 import svgArc from "@stratakit/icons/arc.svg";
 import svgAutomagic from "@stratakit/icons/automagic.svg";
-import VerticalToolRail from "./VerticalToolRail.jsx";
+import VerticalToolRail from "./VerticalToolRail.tsx";
 
 /**
  * The "Edit" panel: hosts the folded-paper SVG (built by the engine into

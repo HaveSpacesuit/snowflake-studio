@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { createStudioEngine } from "../studio/StudioEngine.js";
-import { normalizeSnowflakeOptions } from "../snowflake/options.js";
+import { createStudioEngine } from "../studio/StudioEngine.ts";
+import { normalizeSnowflakeOptions } from "../snowflake/options.ts";
 
 /**
  * Mounts the imperative Studio engine against the given DOM refs and mirrors its

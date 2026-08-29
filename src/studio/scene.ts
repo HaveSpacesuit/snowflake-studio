@@ -2,7 +2,7 @@
 // data-* attributes here are the contract the engine (and the e2e tests) rely
 // on, so each named node is created up front and looked up by `data-role`.
 
-import { CANVAS_BG, DISPLAY_HEIGHT, DISPLAY_WIDTH, FOLDED_BASE_ROTATION } from "../constants.js";
+import { CANVAS_BG, DISPLAY_HEIGHT, DISPLAY_WIDTH, FOLDED_BASE_ROTATION } from "../constants.ts";
 
 export const SVG_NS = "http://www.w3.org/2000/svg";
 

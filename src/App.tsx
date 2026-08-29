@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import BackgroundCanvas from "./components/BackgroundCanvas.jsx";
-import SiteNav from "./components/SiteNav.jsx";
-import EditPanel from "./components/EditPanel.jsx";
-import PreviewPanel from "./components/PreviewPanel.jsx";
-import HelpModal from "./components/HelpModal.jsx";
-import OptionsModal from "./components/OptionsModal.jsx";
-import ConfirmDialog from "./components/ConfirmDialog.jsx";
-import { useStudioEngine } from "./hooks/useStudioEngine.js";
+import BackgroundCanvas from "./components/BackgroundCanvas.tsx";
+import SiteNav from "./components/SiteNav.tsx";
+import EditPanel from "./components/EditPanel.tsx";
+import PreviewPanel from "./components/PreviewPanel.tsx";
+import HelpModal from "./components/HelpModal.tsx";
+import OptionsModal from "./components/OptionsModal.tsx";
+import ConfirmDialog from "./components/ConfirmDialog.tsx";
+import { useStudioEngine } from "./hooks/useStudioEngine.ts";
 
 /** The Studio editor page: draw folded cuts and preview the unfolded snowflake. */
 export default function App() {

@@ -1,8 +1,8 @@
 // Pure math for a pannable/zoomable canvas view. A view is
 // `{ scale, offsetX, offsetY, rotation? }` mapping world coordinates to screen.
 
-import { DISPLAY_HEIGHT, DISPLAY_WIDTH, MAX_VIEW_SCALE, MIN_VIEW_SCALE } from "../constants.js";
-import { clamp } from "../utils/math.js";
+import { DISPLAY_HEIGHT, DISPLAY_WIDTH, MAX_VIEW_SCALE, MIN_VIEW_SCALE } from "../constants.ts";
+import { clamp } from "../utils/math.ts";
 
 export function resetView(view) {
   view.scale = 1;

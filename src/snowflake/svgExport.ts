@@ -1,10 +1,10 @@
 // Serialises the current unfolded snowflake into a standalone SVG string, used
 // both for file export and for collection thumbnails.
 
-import { DISPLAY_HEIGHT, DISPLAY_WIDTH } from "../constants.js";
-import { computeGeomCenter, multiPolygonToPath } from "../geometry/polygon.js";
-import { buildUnfoldedOutlinePaths } from "../geometry/outline.js";
-import { normalizeSnowflakeOptions } from "./options.js";
+import { DISPLAY_HEIGHT, DISPLAY_WIDTH } from "../constants.ts";
+import { computeGeomCenter, multiPolygonToPath } from "../geometry/polygon.ts";
+import { buildUnfoldedOutlinePaths } from "../geometry/outline.ts";
+import { normalizeSnowflakeOptions } from "./options.ts";
 
 /**
  * Build the export SVG for an unfolded snowflake.

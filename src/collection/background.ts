@@ -9,9 +9,9 @@ import {
   BG_FLAKE_MIN_SIZE,
   DISPLAY_HEIGHT,
   DISPLAY_WIDTH
-} from "../constants.js";
-import { clamp, rand } from "../utils/math.js";
-import { getActiveStudioPreviewSvg } from "../snowflake/storage.js";
+} from "../constants.ts";
+import { clamp, rand } from "../utils/math.ts";
+import { getActiveStudioPreviewSvg } from "../snowflake/storage.ts";
 
 const DEFAULT_FALLBACK_SVG = [
   `<?xml version="1.0" encoding="UTF-8"?>`,

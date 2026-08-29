@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 // Two entry points: the Studio editor (index.html) and the Collection page
 // (collection.html). Vite bundles each and serves them during `npm run dev`.
 export default defineConfig({
+  base: "./",
   plugins: [react()],
   build: {
     assetsInlineLimit: (filePath) => {

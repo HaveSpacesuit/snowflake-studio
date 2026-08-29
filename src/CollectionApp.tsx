@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import BackgroundCanvas from "./components/BackgroundCanvas.jsx";
-import SiteNav from "./components/SiteNav.jsx";
-import CollectionGrid from "./components/CollectionGrid.jsx";
-import ConfirmDialog from "./components/ConfirmDialog.jsx";
-import { useConfirm } from "./hooks/useConfirm.js";
-import { createCollectionBackground } from "./collection/background.js";
+import BackgroundCanvas from "./components/BackgroundCanvas.tsx";
+import SiteNav from "./components/SiteNav.tsx";
+import CollectionGrid from "./components/CollectionGrid.tsx";
+import ConfirmDialog from "./components/ConfirmDialog.tsx";
+import { useConfirm } from "./hooks/useConfirm.ts";
+import { createCollectionBackground } from "./collection/background.ts";
 import {
   isNonEmptyStudioStatePresent,
   loadCollectionItems,
   saveAsActiveStudioSnowflake,
   saveCollectionItems
-} from "./snowflake/storage.js";
+} from "./snowflake/storage.ts";
 
 /** The Collection page: browse, edit, and delete saved snowflakes. */
 export default function CollectionApp() {

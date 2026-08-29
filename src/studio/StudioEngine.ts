@@ -28,8 +28,8 @@ import {
   BG_FLAKE_MIN_SIZE,
   MAX_VIEW_SCALE,
   MIN_VIEW_SCALE
-} from "../constants.js";
-import { clamp, dist, rand } from "../utils/math.js";
+} from "../constants.ts";
+import { clamp, dist, rand } from "../utils/math.ts";
 import {
   cloneGeom,
   computeGeomCenter,
@@ -42,7 +42,7 @@ import {
   pointsToPath,
   snapCutEndsIfClose,
   snapPointToBoundaryIfClose
-} from "../geometry/polygon.js";
+} from "../geometry/polygon.ts";
 import polygonClipping from "polygon-clipping";
 import {
   computeCutOutcome,
@@ -52,15 +52,15 @@ import {
   prettifyCutPath,
   sanitizeCutPath,
   validateCut
-} from "../geometry/cuts.js";
-import { buildUnfoldedGeom } from "../geometry/unfold.js";
-import { buildUnfoldedOutlinePaths } from "../geometry/outline.js";
-import { generateRandomValidCut } from "../geometry/randomCut.js";
-import { clampViewToCanvas, resetView, zoomViewAtPoint } from "../geometry/view.js";
-import { createBasePaperGeomForSideCount, getOuterBaseForSideCount } from "../geometry/paper.js";
-import { normalizeSideCount, normalizeSnowflakeOptions } from "../snowflake/options.js";
-import { computeSnowflakeSignature, getBasePaperSignature } from "../snowflake/signature.js";
-import { buildExportSvgString } from "../snowflake/svgExport.js";
+} from "../geometry/cuts.ts";
+import { buildUnfoldedGeom } from "../geometry/unfold.ts";
+import { buildUnfoldedOutlinePaths } from "../geometry/outline.ts";
+import { generateRandomValidCut } from "../geometry/randomCut.ts";
+import { clampViewToCanvas, resetView, zoomViewAtPoint } from "../geometry/view.ts";
+import { createBasePaperGeomForSideCount, getOuterBaseForSideCount } from "../geometry/paper.ts";
+import { normalizeSideCount, normalizeSnowflakeOptions } from "../snowflake/options.ts";
+import { computeSnowflakeSignature, getBasePaperSignature } from "../snowflake/signature.ts";
+import { buildExportSvgString } from "../snowflake/svgExport.ts";
 import {
   loadActiveStudioState,
   normalizeStoredGeom,
@@ -68,13 +68,13 @@ import {
   persistActiveStudioState,
   removeActiveStudioState,
   saveSnowflakeToCollection
-} from "../snowflake/storage.js";
+} from "../snowflake/storage.ts";
 import {
   buildPanelSvg,
   createSvgElement,
   extractFoldedLayer,
   extractUnfoldedLayer
-} from "./scene.js";
+} from "./scene.ts";
 
 const noop = () => {};
 const TOOL_FREEHAND = "freehand";
@@ -202,7 +202,7 @@ export function createStudioEngine(config) {
       redoStack: state.redoStack,
       lastCollectionSavedSignature: state.lastCollectionSavedSignature,
       options: normalizeSnowflakeOptions(state.options)
-    };
+    } as any;
     const previewSvg = getExportSvgString();
     if (previewSvg) payload.previewSvg = previewSvg;
     persistActiveStudioState(payload, signature);
@@ -664,8 +664,8 @@ export function createStudioEngine(config) {
 
     const paperArea = geomArea(state.paperGeom);
     foldedSvg.dataset.paperPixels = String(Math.round(paperArea));
-    window.__snowflakePaperPixels = Math.round(paperArea);
-    window.__snowflakePaperArea = paperArea;
+    (window as any).__snowflakePaperPixels = Math.round(paperArea);
+    (window as any).__snowflakePaperArea = paperArea;
   }
 
   function updateUnfoldedSvg() {
@@ -1600,7 +1600,7 @@ export function createStudioEngine(config) {
   // Wiring + lifecycle
   // -------------------------------------------------------------------------
 
-  function addSvgListener(svg, type, handler, options) {
+  function addSvgListener(svg, type, handler, options = undefined) {
     svg.addEventListener(type, handler, options);
   }
 

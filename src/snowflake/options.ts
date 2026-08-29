@@ -13,8 +13,8 @@ import {
   OUTLINE_WIDTH_MIN,
   SIDE_COUNT_MAX,
   SIDE_COUNT_MIN
-} from "../constants.js";
-import { clamp } from "../utils/math.js";
+} from "../constants.ts";
+import { clamp } from "../utils/math.ts";
 
 export function normalizeOutlineColor(value) {
   if (typeof value !== "string") return DEFAULT_OUTLINE_EXTERIOR_COLOR;

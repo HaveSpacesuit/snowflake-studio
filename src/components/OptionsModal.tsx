@@ -4,13 +4,13 @@ import {
   OUTLINE_WIDTH_MIN,
   SIDE_COUNT_MAX,
   SIDE_COUNT_MIN
-} from "../constants.js";
+} from "../constants.ts";
 import {
   normalizeSideCount,
   normalizeSnowflakeOptions,
   previewModeToSliderValue,
   sliderValueToPreviewMode
-} from "../snowflake/options.js";
+} from "../snowflake/options.ts";
 
 /**
  * Options dialog for the current snowflake. Colour/width/preview changes apply

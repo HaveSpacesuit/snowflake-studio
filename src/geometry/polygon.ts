@@ -5,8 +5,8 @@
 // of `[x, y]` coordinate pairs. The first ring of a polygon is its outer
 // boundary; any following rings are holes.
 
-import { CLEAN_EPS, GEOM_GRID } from "../constants.js";
-import { clamp } from "../utils/math.js";
+import { CLEAN_EPS, GEOM_GRID } from "../constants.ts";
+import { clamp } from "../utils/math.ts";
 
 /** Deep-clone geometry (safe because it is plain arrays of numbers). */
 export function cloneGeom(geom) {

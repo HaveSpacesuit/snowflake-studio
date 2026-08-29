@@ -7,10 +7,10 @@ import {
   COLLECTION_MAX_ITEMS,
   COLLECTION_STORAGE_KEY,
   STORAGE_SCHEMA_VERSION
-} from "../constants.js";
-import { cloneGeom, normalizeGeom } from "../geometry/polygon.js";
-import { normalizeSnowflakeOptions } from "./options.js";
-import { computeSnowflakeSignature, getBasePaperSignature } from "./signature.js";
+} from "../constants.ts";
+import { cloneGeom, normalizeGeom } from "../geometry/polygon.ts";
+import { normalizeSnowflakeOptions } from "./options.ts";
+import { computeSnowflakeSignature, getBasePaperSignature } from "./signature.ts";
 
 // ---------------------------------------------------------------------------
 // Geometry restoration helpers

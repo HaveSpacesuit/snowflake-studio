@@ -2,8 +2,8 @@
 // normalised options. It is used to detect unsaved changes and to compare a
 // design against the pristine default.
 
-import { normalizeSnowflakeOptions } from "./options.js";
-import { createBasePaperGeomForSideCount } from "../geometry/paper.js";
+import { normalizeSnowflakeOptions } from "./options.ts";
+import { createBasePaperGeomForSideCount } from "../geometry/paper.ts";
 
 export function computeSnowflakeSignature(geom, options) {
   return JSON.stringify({

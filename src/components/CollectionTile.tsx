@@ -1,5 +1,5 @@
-import { normalizeStoredGeom } from "../snowflake/storage.js";
-import { normalizeSnowflakeOptions } from "../snowflake/options.js";
+import { normalizeStoredGeom } from "../snowflake/storage.ts";
+import { normalizeSnowflakeOptions } from "../snowflake/options.ts";
 
 /** A single saved snowflake with Edit/Delete actions. */
 export default function CollectionTile({ item, onEdit, onDelete }) {

@@ -6,8 +6,8 @@
 // "ribbon" (the stroked path widened into a polygon) from the paper.
 
 import polygonClipping from "polygon-clipping";
-import { APEX, CUT_WIDTH, FOLD_BASE, MIN_EDGE_INSIDE_LENGTH } from "../constants.js";
-import { clamp, dist } from "../utils/math.js";
+import { APEX, CUT_WIDTH, FOLD_BASE, MIN_EDGE_INSIDE_LENGTH } from "../constants.ts";
+import { clamp, dist } from "../utils/math.ts";
 import {
   cloneGeom,
   distanceToBoundary,
@@ -15,7 +15,7 @@ import {
   normalizeGeom,
   pointInGeom,
   polygonArea
-} from "./polygon.js";
+} from "./polygon.ts";
 
 /** Remove near-duplicate points and apply a light 3-tap smoothing pass. */
 export function sanitizeCutPath(points) {

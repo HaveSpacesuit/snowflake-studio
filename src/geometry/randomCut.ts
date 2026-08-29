@@ -3,10 +3,10 @@
 // to the same edge) and returns the first that validates and stays under the
 // maximum removal fraction.
 
-import { APEX, FOLD_BASE, MAX_RANDOM_CUT_REMOVAL_FRACTION } from "../constants.js";
-import { rand } from "../utils/math.js";
-import { getGeomBounds } from "./polygon.js";
-import { getCutRemovalFraction, sanitizeCutPath, validateCut } from "./cuts.js";
+import { APEX, FOLD_BASE, MAX_RANDOM_CUT_REMOVAL_FRACTION } from "../constants.ts";
+import { rand } from "../utils/math.ts";
+import { getGeomBounds } from "./polygon.ts";
+import { getCutRemovalFraction, sanitizeCutPath, validateCut } from "./cuts.ts";
 
 function edgePoint(a, b, t) {
   return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };

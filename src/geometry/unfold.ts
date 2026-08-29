@@ -2,9 +2,9 @@
 // mirroring and rotating it around the apex, then unioning all copies.
 
 import polygonClipping from "polygon-clipping";
-import { APEX } from "../constants.js";
-import { normalizeGeom } from "./polygon.js";
-import { normalizeSideCount } from "../snowflake/options.js";
+import { APEX } from "../constants.ts";
+import { normalizeGeom } from "./polygon.ts";
+import { normalizeSideCount } from "../snowflake/options.ts";
 
 function transformPoint(pt, angle, mirror) {
   let x = pt[0];
@@ -40,7 +40,12 @@ export function buildUnfoldedGeom(paperGeom, sideCount, previousGeom = [], onErr
   }
 
   try {
-    return normalizeGeom(polygonClipping.union(...parts));
+    if (parts.length === 0) return normalizeGeom([]);
+    let merged = parts[0];
+    for (let i = 1; i < parts.length; i += 1) {
+      merged = polygonClipping.union(merged, parts[i]) as any;
+    }
+    return normalizeGeom(merged);
   } catch (err) {
     console.error("Unfold boolean failed", err);
     if (onError) onError(err);

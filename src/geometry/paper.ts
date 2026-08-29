@@ -2,9 +2,9 @@
 // determined by the snowflake's side count. Folding and mirroring this wedge
 // produces the full snowflake (see unfold.js).
 
-import { APEX, FOLD_BASE, FOLD_HEIGHT } from "../constants.js";
-import { normalizeGeom } from "./polygon.js";
-import { normalizeSideCount } from "../snowflake/options.js";
+import { APEX, FOLD_BASE, FOLD_HEIGHT } from "../constants.ts";
+import { normalizeGeom } from "./polygon.ts";
+import { normalizeSideCount } from "../snowflake/options.ts";
 
 /**
  * The outer base corner of the wedge for a given side count. A higher side
