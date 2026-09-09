@@ -25,9 +25,11 @@ export function buildUnfoldedOutlinePaths(geom) {
     );
 
     if (snapped.length > 0) {
-      let merged = snapped[0];
+      // polygon-clipping.union returns a MultiPolygon; keep `merged` as that
+      // shape even when the input contains only one polygon.
+      let merged = [snapped[0]];
       for (let i = 1; i < snapped.length; i += 1) {
-        merged = polygonClipping.union(merged, snapped[i]) as any;
+        merged = polygonClipping.union(merged, [snapped[i]]) as any;
       }
       outlineGeom = normalizeGeom(merged);
     } else {

@@ -7,6 +7,12 @@ import { resolve } from "node:path";
 export default defineConfig({
   base: "./",
   plugins: [react()],
+  server: {
+    // Always use the same port instead of falling back to the next free one,
+    // so agent tooling (and Eric) can rely on a predictable dev server URL.
+    port: 5173,
+    strictPort: true
+  },
   build: {
     assetsInlineLimit: (filePath) => {
       if (filePath.endsWith(".svg")) return false;

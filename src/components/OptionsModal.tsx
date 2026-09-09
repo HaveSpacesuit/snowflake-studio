@@ -11,16 +11,18 @@ import {
   previewModeToSliderValue,
   sliderValueToPreviewMode
 } from "../snowflake/options.ts";
+import { normalizePrintPaperSize, type PrintPaperSize } from "../print/config.ts";
 
 /**
  * Options dialog for the current snowflake. Colour/width/preview changes apply
  * live through the engine; side count is staged and only takes effect (starting
  * a fresh snowflake) on Save. Cancelling reverts to the snapshot taken on open.
  */
-export default function OptionsModal({ open, options, engineRef, onStatus, onClose }) {
+export default function OptionsModal({ open, options, engineRef, onStatus, onClose, paperSize, onPaperSizeChange }) {
   const ref = useRef(null);
   const snapshotRef = useRef(null);
   const [pendingSideCount, setPendingSideCount] = useState(options.sideCount);
+  const [pendingPaperSize, setPendingPaperSize] = useState<PrintPaperSize>(paperSize);
 
   useEffect(() => {
     const dialog = ref.current;
@@ -29,6 +31,7 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
       const engine = engineRef.current;
       snapshotRef.current = engine ? engine.getOptions() : normalizeSnowflakeOptions(options);
       setPendingSideCount(snapshotRef.current.sideCount);
+      setPendingPaperSize(paperSize);
       dialog.returnValue = "";
       dialog.showModal();
     } else if (!open && dialog.open) {
@@ -46,6 +49,7 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
   const handleClose = () => {
     const engine = engineRef.current;
     const result = ref.current?.returnValue;
+    if (result === "save") onPaperSizeChange(pendingPaperSize);
     if (engine) {
       if (result === "save") {
         const current = engine.getOptions();
@@ -205,6 +209,17 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
           />
 
           <p className="optionsNote optionsNoteSideCount">Changing side count will lose current progress.</p>
+
+          <label className="optionsLabel" htmlFor="printPaperSize">Print paper size</label>
+          <select
+            id="printPaperSize"
+            className="optionsSelect"
+            value={pendingPaperSize}
+            onChange={(event) => setPendingPaperSize(normalizePrintPaperSize(event.target.value))}
+          >
+            <option value="letter">Letter (8.5 x 11 in)</option>
+            <option value="a4">A4</option>
+          </select>
         </div>
 
         <div className="optionsActions">

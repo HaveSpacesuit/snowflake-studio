@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BackgroundCanvas from "./components/BackgroundCanvas.tsx";
 import SiteNav from "./components/SiteNav.tsx";
 import EditPanel from "./components/EditPanel.tsx";
@@ -6,7 +6,13 @@ import PreviewPanel from "./components/PreviewPanel.tsx";
 import HelpModal from "./components/HelpModal.tsx";
 import OptionsModal from "./components/OptionsModal.tsx";
 import ConfirmDialog from "./components/ConfirmDialog.tsx";
+import PrintSheet from "./components/PrintSheet.tsx";
 import { useStudioEngine } from "./hooks/useStudioEngine.ts";
+import {
+  DEFAULT_PRINT_PAPER_SIZE,
+  PRINT_CONFIG,
+  type PrintPaperSize
+} from "./print/config.ts";
 
 /** The Studio editor page: draw folded cuts and preview the unfolded snowflake. */
 export default function App() {
@@ -23,6 +29,16 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [newConfirmOpen, setNewConfirmOpen] = useState(false);
+  const [paperSize, setPaperSize] = useState<PrintPaperSize>(DEFAULT_PRINT_PAPER_SIZE);
+  const [paperGeom, setPaperGeom] = useState(null);
+  const [previewSvg, setPreviewSvg] = useState("");
+
+  // Refresh the cut geometry used for the print preview whenever the cut
+  // history changes (i.e. after any cut, undo, redo, or reset).
+  useEffect(() => {
+    setPaperGeom(engineRef.current?.getPaperGeom() ?? null);
+    setPreviewSvg(engineRef.current?.getPrintPreviewSvgString() ?? "");
+  }, [engineRef, history, options]);
 
   const handleNew = () => {
     const engine = engineRef.current;
@@ -72,9 +88,11 @@ export default function App() {
           <PreviewPanel
             hostRef={unfoldedHostRef}
             canSave={canSave}
+            canPrint={options.sideCount === PRINT_CONFIG.supportedSideCount}
             onSave={() => engineRef.current?.saveToCollection()}
             onExport={() => engineRef.current?.exportSvg()}
             onOptions={() => setOptionsOpen(true)}
+            onPrint={() => window.print()}
           />
         </section>
 
@@ -88,6 +106,8 @@ export default function App() {
         engineRef={engineRef}
         onStatus={setStatus}
         onClose={() => setOptionsOpen(false)}
+        paperSize={paperSize}
+        onPaperSizeChange={setPaperSize}
       />
       <ConfirmDialog
         open={newConfirmOpen}
@@ -96,6 +116,12 @@ export default function App() {
         confirmLabel="Start new"
         cancelLabel="Keep editing"
         onResolve={resolveNew}
+      />
+      <PrintSheet
+        paperSize={paperSize}
+        paperGeom={paperGeom}
+        previewSvg={previewSvg}
+        sideCount={options.sideCount}
       />
     </>
   );

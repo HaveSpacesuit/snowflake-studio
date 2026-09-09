@@ -61,6 +61,7 @@ import { clampViewToCanvas, resetView, zoomViewAtPoint } from "../geometry/view.
 import { createBasePaperGeomForSideCount, getOuterBaseForSideCount } from "../geometry/paper.ts";
 import { normalizeSideCount, normalizeSnowflakeOptions } from "../snowflake/options.ts";
 import { computeSnowflakeSignature, getBasePaperSignature } from "../snowflake/signature.ts";
+import { buildPrintPreviewSvgString } from "../print/previewSvg.ts";
 import { buildExportSvgString } from "../snowflake/svgExport.ts";
 import {
   loadActiveStudioState,
@@ -776,6 +777,15 @@ export function createStudioEngine(config) {
   function getExportSvgString() {
     updateUnfoldedGeom();
     return buildExportSvgString(state.unfoldedGeom, state.options, state.unfoldedBaseScale, getUnfoldedSpinAngle());
+  }
+
+  /**
+   * Static snowflake SVG for the print-sheet preview, rotated 30° to better
+   * match the orientation shown in the editor and print-sheet cut mapping.
+   */
+  function getPrintPreviewSvgString() {
+    updateUnfoldedGeom();
+    return buildPrintPreviewSvgString(state.unfoldedGeom, state.options, Math.PI / 6);
   }
 
   function makeExportFilename() {
@@ -1795,6 +1805,8 @@ export function createStudioEngine(config) {
     toggleCircleResizeMode: () => setCircleResizeMode(!state.circleResizeMode),
     getActiveTool: () => state.activeTool,
     getOptions: () => normalizeSnowflakeOptions(state.options),
+    getPaperGeom: () => cloneGeom(state.paperGeom),
+    getPrintPreviewSvgString,
     hasChanges: hasSnowflakeChanges
   };
 }

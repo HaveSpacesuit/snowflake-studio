@@ -2,6 +2,117 @@ import { test, expect } from "@playwright/test";
 
 const appUrl = "/index.html";
 
+test("print button invokes browser print", async ({ page }) => {
+  await page.goto(appUrl);
+  await page.evaluate(() => {
+    window.__printCalls = 0;
+    window.print = () => { window.__printCalls += 1; };
+  });
+
+  await expect(page.locator("#printBtn")).toBeEnabled();
+  await page.locator("#printBtn").click();
+  await expect.poll(() => page.evaluate(() => window.__printCalls)).toBe(1);
+});
+
+test("stages print paper size changes until options are saved", async ({ page }) => {
+  await page.goto(appUrl);
+  await expect(page.locator(".printSheet--letter")).toHaveCount(1);
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#printPaperSize").selectOption("a4");
+  await expect(page.locator(".printSheet--letter")).toHaveCount(1);
+  await page.locator("#optionsCancelBtn").click();
+  await expect(page.locator(".printSheet--letter")).toHaveCount(1);
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#printPaperSize").selectOption("a4");
+  await page.locator("#optionsSaveBtn").click();
+  await expect(page.locator(".printSheet--a4")).toHaveCount(1);
+  await expect(page.locator(".printSheet--letter")).toHaveCount(0);
+});
+
+test("keeps sheet guides full-size while insetting wedge cuts", async ({ page }) => {
+  await page.goto(appUrl);
+
+  const assertPrintGeometry = async (squareSize) => {
+    const squareCut = page.getByTestId("print-square-cut");
+    const diagonalFold = page.getByTestId("print-diagonal-fold");
+    const wedgeTopCut = page.getByTestId("print-wedge-top-cut");
+
+    await expect(squareCut).toHaveAttribute("x1", "0");
+    await expect(squareCut).toHaveAttribute("y1", String(squareSize));
+    await expect(squareCut).toHaveAttribute("x2", String(squareSize));
+    await expect(squareCut).toHaveAttribute("y2", String(squareSize));
+    await expect(diagonalFold).toHaveAttribute("x1", "0");
+    await expect(diagonalFold).toHaveAttribute("y1", "0");
+    await expect(diagonalFold).toHaveAttribute("x2", String(squareSize));
+    await expect(diagonalFold).toHaveAttribute("y2", String(squareSize));
+    await expect.poll(async () => Number(await wedgeTopCut.getAttribute("y2"))).toBeCloseTo(2.54, 6);
+  };
+
+  await assertPrintGeometry(215.9);
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#printPaperSize").selectOption("a4");
+  await page.locator("#optionsSaveBtn").click();
+  await assertPrintGeometry(210);
+});
+
+test("tightly frames the print snowflake below its label", async ({ page }) => {
+  await page.goto(appUrl);
+  await page.emulateMedia({ media: "print" });
+
+  const labelBox = await page.locator(".printPreviewLabel").boundingBox();
+  const snowflakeBox = await page.locator(".printPreviewSvg svg").boundingBox();
+  if (!labelBox || !snowflakeBox) throw new Error("Print preview was not rendered");
+
+  const gap = snowflakeBox.y - (labelBox.y + labelBox.height);
+  expect(gap).toBeGreaterThan(10);
+  expect(gap).toBeLessThan(25);
+  await expect(page.locator(".printPreviewSvg")).toHaveCSS("margin-top", "0px");
+
+  const paddingRatios = await page.locator(".printPreviewSvg svg").evaluate((svg) => {
+    const group = svg.querySelector("g");
+    const bodyPath = group?.querySelector("path");
+    const matrix = group?.transform.baseVal.consolidate()?.matrix;
+    const coordinates = bodyPath?.getAttribute("d")?.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [];
+    if (!matrix || coordinates.length < 2) throw new Error("Print preview path was not rendered");
+
+    const points = [];
+    for (let i = 0; i < coordinates.length; i += 2) {
+      points.push({
+        x: matrix.a * coordinates[i] + matrix.c * coordinates[i + 1] + matrix.e,
+        y: matrix.b * coordinates[i] + matrix.d * coordinates[i + 1] + matrix.f
+      });
+    }
+
+    const minX = Math.min(...points.map((point) => point.x));
+    const minY = Math.min(...points.map((point) => point.y));
+    const maxX = Math.max(...points.map((point) => point.x));
+    const maxY = Math.max(...points.map((point) => point.y));
+    const contentSize = Math.max(maxX - minX, maxY - minY);
+    const viewBox = svg.viewBox.baseVal;
+    return [
+      (minX - viewBox.x) / contentSize,
+      (minY - viewBox.y) / contentSize,
+      (viewBox.x + viewBox.width - maxX) / contentSize,
+      (viewBox.y + viewBox.height - maxY) / contentSize
+    ];
+  });
+
+  for (const ratio of paddingRatios) expect(ratio).toBeCloseTo(0.01, 4);
+});
+
+test("only enables printing for six-sided snowflakes", async ({ page }) => {
+  await page.goto(appUrl);
+  await expect(page.locator("#printBtn")).toBeEnabled();
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#optionsSideCountInput").fill("7");
+  await page.locator("#optionsSaveBtn").click();
+  await expect(page.locator("#printBtn")).toBeDisabled();
+});
+
 function statusIsAccepted(statusText) {
   return /^Accepted \(/.test(statusText) || /^Cut accepted \(/.test(statusText);
 }
