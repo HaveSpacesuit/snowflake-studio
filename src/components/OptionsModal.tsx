@@ -11,7 +11,7 @@ import {
   previewModeToSliderValue,
   sliderValueToPreviewMode
 } from "../snowflake/options.ts";
-import { normalizePrintPaperSize, type PrintPaperSize } from "../print/config.ts";
+import { normalizePrintPaperSize, PRINT_CONFIG, type PrintPaperSize } from "../print/config.ts";
 
 /**
  * Options dialog for the current snowflake. Colour/width/preview changes apply
@@ -208,7 +208,15 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
             onChange={(e) => setPendingSideCount(normalizeSideCount(e.target.value))}
           />
 
-          <p className="optionsNote optionsNoteSideCount">Changing side count will lose current progress.</p>
+          {pendingSideCount !== snapshotRef.current?.sideCount && (
+            <p className="optionsNote optionsNoteSideCount">Changing side count will lose current progress.</p>
+          )}
+
+          {pendingSideCount !== PRINT_CONFIG.supportedSideCount && (
+            <p className="optionsNote optionsNoteSideCount">
+              Print functionality is only enabled when using a 6-sided snowflake.
+            </p>
+          )}
 
           <label className="optionsLabel" htmlFor="printPaperSize">Print paper size</label>
           <select
