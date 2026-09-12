@@ -21,7 +21,6 @@ export const FOLD_BASE = { x: APEX.x, y: APEX.y - FOLD_HEIGHT };
 // ---------------------------------------------------------------------------
 export const EDGE_FINAL_TOL = 16;
 export const EDGE_START_SNAP_TOL = 20;
-export const EDGE_LOCK_MIN_PATH_LENGTH = 26;
 export const MIN_EDGE_INSIDE_LENGTH = 5;
 export const SNAP_OUTSIDE_LEAD = 2.6;
 export const SNAP_INTERIOR_MIN_LEAD = 2.4;

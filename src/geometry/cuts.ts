@@ -18,6 +18,7 @@ import {
 } from "./polygon.ts";
 
 type CutValidationOptions = {
+  requireEndpointsOutside?: boolean;
   requireStartOutside?: boolean;
 };
 
@@ -74,15 +75,6 @@ export function prettifyCutPath(points) {
   return sanitizeCutPath(work);
 }
 
-export function cutPathLength(points) {
-  if (!Array.isArray(points) || points.length < 2) return 0;
-  let total = 0;
-  for (let i = 1; i < points.length; i += 1) {
-    total += dist(points[i - 1], points[i]);
-  }
-  return total;
-}
-
 /**
  * Walk the stroke, counting inside/outside transitions and the length of the
  * portion that lies inside the paper. A valid edge-to-edge cut enters and exits
@@ -130,11 +122,21 @@ function startsInsidePaper(points, geom, tolerance = 1.5) {
   return distanceToBoundary(start, geom) > tolerance;
 }
 
+function endsInsidePaper(points, geom, tolerance = 1.5) {
+  const end = points[points.length - 1];
+  if (!pointInGeom(end, geom)) return false;
+  return distanceToBoundary(end, geom) > tolerance;
+}
+
 export function validateCut(points, geom, options: CutValidationOptions = {}) {
   if (points.length < 2) return { valid: false, reason: "Cut too short." };
 
-  if (options.requireStartOutside && startsInsidePaper(points, geom)) {
+  if ((options.requireStartOutside || options.requireEndpointsOutside) && startsInsidePaper(points, geom)) {
     return { valid: false, reason: "start the cut outside the paper." };
+  }
+
+  if (options.requireEndpointsOutside && endsInsidePaper(points, geom)) {
+    return { valid: false, reason: "end the cut outside the paper." };
   }
 
   const stroke = analyzeStroke(points, geom, 4);

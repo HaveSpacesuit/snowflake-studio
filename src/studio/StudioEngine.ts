@@ -15,7 +15,6 @@ import {
   DISPLAY_HEIGHT,
   DISPLAY_WIDTH,
   EDGE_FINAL_TOL,
-  EDGE_LOCK_MIN_PATH_LENGTH,
   EDGE_START_SNAP_TOL,
   FOLDED_BASE_ROTATION,
   SNAP_INTERIOR_MIN_LEAD,
@@ -47,7 +46,6 @@ import {
 import polygonClipping from "polygon-clipping";
 import {
   computeCutOutcome,
-  cutPathLength,
   getCutRemovalFraction,
   getLiveCutPreview,
   prettifyCutPath,
@@ -115,7 +113,6 @@ export function createStudioEngine(config) {
   const state = {
     drawing: false,
     currentCut: [],
-    lockedCut: null,
     panning: false,
     panTarget: null,
     panPointerId: null,
@@ -434,7 +431,6 @@ export function createStudioEngine(config) {
     const valid = isValidCircleCut(circleCenter, state.circleCutRadius);
     state.circleHoverPoint = cursorPt;
     state.currentCut = buildCirclePreviewPoints(cursorPt);
-    state.lockedCut = null;
     state.livePreview = {
       mode: valid ? "circle" : "invalid",
       text: valid
@@ -449,7 +445,6 @@ export function createStudioEngine(config) {
     if (!state.drawing) {
       const wasCirclePreview = state.livePreview.mode === "circle";
       state.currentCut = [];
-      state.lockedCut = null;
       state.livePreview = { mode: "none", text: "Ready" };
       if (wasCirclePreview) setStatus("Ready");
     }
@@ -545,7 +540,6 @@ export function createStudioEngine(config) {
       if (applyCircleCutAtCursor(cursorPt, MAX_RANDOM_CUT_REMOVAL_FRACTION, radius)) {
         state.circleHoverPoint = null;
         state.currentCut = [];
-        state.lockedCut = null;
         state.livePreview = { mode: "none", text: "Ready" };
         render();
         return true;
@@ -915,11 +909,11 @@ export function createStudioEngine(config) {
   }
 
   function cutValidationOptions() {
-    return { requireStartOutside: state.activeTool === TOOL_FREEHAND };
+    return { requireEndpointsOutside: state.activeTool === TOOL_FREEHAND || state.activeTool === TOOL_STRAIGHT };
   }
 
-  function finalizeCut() {
-    const input = state.lockedCut ? state.lockedCut.slice() : state.currentCut.slice();
+  function finalizeCut(releaseStartedReady = true) {
+    const input = state.currentCut.slice();
     if (input.length < 2) {
       resetCutDraft("Ready");
       render();
@@ -929,6 +923,13 @@ export function createStudioEngine(config) {
     const options = cutValidationOptions();
     let cut = sanitizeCutPath(input);
     let validation = validateCut(cut, state.paperGeom, options);
+
+    if (!releaseStartedReady || state.livePreview.mode !== "edge") {
+      setStatus("Rejected: " + validation.reason);
+      resetCutDraft("Ready");
+      render();
+      return;
+    }
 
     if (!validation.valid) {
       const snappedStart = snapCutEndsIfClose(cut, state.paperGeom, EDGE_START_SNAP_TOL);
@@ -999,7 +1000,6 @@ export function createStudioEngine(config) {
 
   function resetCutDraft(statusText) {
     state.currentCut = [];
-    state.lockedCut = null;
     state.livePreview = { mode: "none", text: statusText || "Ready" };
     if (statusText) state.livePreview.text = statusText;
   }
@@ -1011,7 +1011,6 @@ export function createStudioEngine(config) {
     state.paperGeom = state.undoStack.pop();
     state.unfoldedDirty = true;
     state.currentCut = [];
-    state.lockedCut = null;
     state.livePreview = { mode: "none", text: "Ready" };
     setStatus("Undid last cut.");
     updateHistoryControls();
@@ -1025,7 +1024,6 @@ export function createStudioEngine(config) {
     state.paperGeom = state.redoStack.pop();
     state.unfoldedDirty = true;
     state.currentCut = [];
-    state.lockedCut = null;
     state.livePreview = { mode: "none", text: "Ready" };
     setStatus("Redid last cut.");
     updateHistoryControls();
@@ -1071,7 +1069,6 @@ export function createStudioEngine(config) {
     }
 
     state.currentCut = randomCut;
-    state.lockedCut = null;
     state.livePreview = { mode: "edge", text: "Edge-to-edge ready: release to cut." };
     render();
     finalizeCut();
@@ -1102,7 +1099,6 @@ export function createStudioEngine(config) {
     state.unfoldedDirty = true;
     state.unfoldedBaseScale = null;
     state.currentCut = [];
-    state.lockedCut = null;
     state.undoStack = [];
     state.redoStack = [];
     stopPanning();
@@ -1136,7 +1132,6 @@ export function createStudioEngine(config) {
     state.unfoldedDirty = true;
     state.unfoldedBaseScale = null;
     state.currentCut = [];
-    state.lockedCut = null;
     state.undoStack = normalizeStoredGeomStack(parsed.undoStack);
     state.redoStack = normalizeStoredGeomStack(parsed.redoStack);
     stopPanning();
@@ -1255,7 +1250,6 @@ export function createStudioEngine(config) {
     if (svg === foldedSvg && state.drawing) {
       state.drawing = false;
       state.currentCut = [];
-      state.lockedCut = null;
       state.livePreview = { mode: "none", text: "Ready" };
     }
   }
@@ -1317,7 +1311,6 @@ export function createStudioEngine(config) {
 
       state.touchStraightArmed = true;
       state.currentCut = [{ x: state.touchDrawStartPoint.x, y: state.touchDrawStartPoint.y }];
-      state.lockedCut = null;
       state.livePreview = { mode: "none", text: "Straight-line mode armed: drag to cut." };
       setStatus(state.livePreview.text);
       render();
@@ -1390,7 +1383,6 @@ export function createStudioEngine(config) {
           { x: initialInteriorPt.x, y: initialInteriorPt.y }
         ]
       : [pt];
-    state.lockedCut = null;
     state.touchDrawStartPoint = evt.pointerType === "touch" ? { x: rawPt.x, y: rawPt.y } : null;
     state.touchDrawMoved = false;
     state.touchDrawStartTime = evt.pointerType === "touch" ? performance.now() : 0;
@@ -1441,14 +1433,6 @@ export function createStudioEngine(config) {
     if (handlePanPointerMove(evt, foldedSvg)) return;
     if (!state.drawing) return;
 
-    if (state.lockedCut && evt.shiftKey) state.lockedCut = null;
-
-    if (state.lockedCut) {
-      setStatus(state.livePreview.text);
-      render();
-      return;
-    }
-
     const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
     if (evt.pointerType === "touch" && state.touchDrawStartPoint && dist(state.touchDrawStartPoint, pt) > TOUCH_DRAG_TOL) {
       state.touchDrawMoved = true;
@@ -1460,13 +1444,6 @@ export function createStudioEngine(config) {
       addPointToCurrentCut(pt);
     }
     state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
-
-    if (!isStraightModeActive(evt) && state.livePreview.mode === "edge") {
-      if (cutPathLength(state.currentCut) >= EDGE_LOCK_MIN_PATH_LENGTH) {
-        state.lockedCut = state.currentCut.slice();
-        state.livePreview = { mode: "edge", text: "Edge-to-edge locked: release to cut." };
-      }
-    }
 
     setStatus(state.livePreview.text);
     render();
@@ -1522,7 +1499,6 @@ export function createStudioEngine(config) {
 
     if (evt.pointerType === "touch" && !state.touchDrawMoved) {
       state.currentCut = [];
-      state.lockedCut = null;
       state.livePreview = { mode: "none", text: "Ready" };
       state.touchDrawStartPoint = null;
       state.touchDrawStartTime = 0;
@@ -1532,16 +1508,16 @@ export function createStudioEngine(config) {
     }
 
     const consumeStraightArm = evt.pointerType === "touch" && state.touchStraightArmed;
-    if (!state.lockedCut) {
-      const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
-      if (isStraightModeActive(evt)) {
-        updateShiftConstrainedCut(pt);
-      } else {
-        addPointToCurrentCut(pt);
-      }
+    const releaseStartedReady = state.livePreview.mode === "edge";
+    const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+    if (isStraightModeActive(evt)) {
+      updateShiftConstrainedCut(pt);
+    } else {
+      addPointToCurrentCut(pt);
     }
+    state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
     foldedSvg.releasePointerCapture(evt.pointerId);
-    finalizeCut();
+    finalizeCut(releaseStartedReady);
     if (consumeStraightArm) state.touchStraightArmed = false;
     state.touchDrawStartPoint = null;
     state.touchDrawMoved = false;
@@ -1560,15 +1536,9 @@ export function createStudioEngine(config) {
       }
     }
 
-    const wasDrawing = state.drawing;
     state.drawing = false;
     if (state.panning) stopPanning();
-    if (wasDrawing && (state.lockedCut || state.currentCut.length >= 2)) {
-      finalizeCut();
-      return;
-    }
     state.currentCut = [];
-    state.lockedCut = null;
     state.touchDrawStartPoint = null;
     state.touchDrawMoved = false;
     state.touchDrawStartTime = 0;

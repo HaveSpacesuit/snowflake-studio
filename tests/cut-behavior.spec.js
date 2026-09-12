@@ -139,6 +139,7 @@ test("only enables printing for six-sided snowflakes", async ({ page }) => {
   await expect(page.locator("#printBtn")).toBeEnabled();
 
   await page.locator("#optionsBtn").click();
+  await expect(page.getByText("Print functionality is only enabled when using a 6-sided snowflake.")).toBeVisible();
   await page.locator("#optionsSideCountInput").fill("7");
   await page.locator("#optionsSaveBtn").click();
   await expect(page.locator("#printBtn")).toBeDisabled();
@@ -250,6 +251,38 @@ async function drawPath(page, points) {
     await page.mouse.move(next.x, next.y);
   }
 
+  await page.mouse.up();
+  return (await page.locator("#status").textContent()) || "";
+}
+
+async function drawPathWithSyntheticRelease(page, points, releasePoint) {
+  const canvas = page.locator("#foldedCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Folded canvas not found");
+
+  const intrinsic = await panelSize(canvas);
+  const toPage = (p) => foldedPointToPage(page, box, intrinsic, p);
+
+  const start = await toPage(points[0]);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+
+  for (let i = 1; i < points.length; i += 1) {
+    const next = await toPage(points[i]);
+    await page.mouse.move(next.x, next.y);
+  }
+
+  const release = await toPage(releasePoint);
+  await canvas.dispatchEvent("pointerup", {
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+    buttons: 0,
+    clientX: release.x,
+    clientY: release.y,
+    bubbles: true,
+    cancelable: true
+  });
   await page.mouse.up();
   return (await page.locator("#status").textContent()) || "";
 }
@@ -652,13 +685,52 @@ test.describe("snowflake cut validity", () => {
   test("outside to inside is invalid", async ({ page }) => {
     await reset(page);
 
+    const before = await whitePixelCount(page);
     const status = await drawPath(page, [
       { x: 145, y: 230 },
       { x: 190, y: 225 },
       { x: 228, y: 255 }
     ]);
+    const after = await whitePixelCount(page);
 
     expect(statusIsRejected(status)).toBe(true);
+    expect(after).toBe(before);
+  });
+
+  test("invalid cut ending near an edge does not snap into a stray notch", async ({ page }) => {
+    await reset(page);
+
+    const before = await whitePixelCount(page);
+    const status = await drawPath(page, [
+      { x: 120, y: 215 },
+      { x: 142, y: 224 },
+      { x: 170, y: 227 },
+      { x: 202, y: 238 },
+      { x: 220, y: 265 }
+    ]);
+    const after = await whitePixelCount(page);
+
+    expect(statusIsRejected(status)).toBe(true);
+    expect(after).toBe(before);
+  });
+
+  test("invalid pink stroke is not accepted by a final mouseup coordinate", async ({ page }) => {
+    await reset(page);
+
+    const before = await whitePixelCount(page);
+    const status = await drawPathWithSyntheticRelease(
+      page,
+      [
+        { x: 145, y: 230 },
+        { x: 190, y: 225 },
+        { x: 228, y: 255 }
+      ],
+      { x: 340, y: 252 }
+    );
+    const after = await whitePixelCount(page);
+
+    expect(statusIsRejected(status)).toBe(true);
+    expect(after).toBe(before);
   });
 
   test("undo and redo restore prior paper states", async ({ page }) => {
