@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { APEX, FOLD_BASE } from "../constants.ts";
 import { createPrintWedgeTransform, isUncutFoldEdge } from "../geometry/printMapping.ts";
 import { getOuterBaseForSideCount } from "../geometry/paper.ts";
@@ -9,9 +10,10 @@ type PrintSheetProps = {
   paperGeom: number[][][][] | null;
   previewSvg: string;
   sideCount: number;
+  sheetRef: Ref<HTMLDivElement>;
 };
 
-export default function PrintSheet({ paperSize, paperGeom, previewSvg, sideCount }: PrintSheetProps) {
+export default function PrintSheet({ paperSize, paperGeom, previewSvg, sideCount, sheetRef }: PrintSheetProps) {
   const paper = PRINT_CONFIG.paperSizes[paperSize];
   const squareSize = paper.widthMm;
   const half = squareSize / 2;
@@ -43,7 +45,9 @@ export default function PrintSheet({ paperSize, paperGeom, previewSvg, sideCount
 
   return (
     <div
+      ref={sheetRef}
       className={`printSheet printSheet--${paperSize}`}
+      data-print-sheet
       style={{ width: `${paper.widthMm}mm`, height: `${paper.heightMm}mm` }}
       aria-hidden="true"
     >

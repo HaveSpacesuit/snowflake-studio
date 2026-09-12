@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 const appUrl = "/index.html";
 
-test("print button invokes browser print", async ({ page }) => {
+test("print instructions button invokes browser print", async ({ page }) => {
   await page.goto(appUrl);
   await page.evaluate(() => {
     window.__printCalls = 0;
@@ -12,6 +13,33 @@ test("print button invokes browser print", async ({ page }) => {
   await expect(page.locator("#printBtn")).toBeEnabled();
   await page.locator("#printBtn").click();
   await expect.poll(() => page.evaluate(() => window.__printCalls)).toBe(1);
+});
+
+test("save instructions downloads the print layout as a PDF", async ({ page }) => {
+  await page.goto(appUrl);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator("#saveInstructionsBtn").click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toMatch(/^snowflake-instructions-\d{8}-\d{6}\.pdf$/);
+  const downloadPath = await download.path();
+  if (!downloadPath) throw new Error("Downloaded PDF path was unavailable");
+  const pdf = await readFile(downloadPath);
+  expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+  expect(pdf.length).toBeGreaterThan(10_000);
+  await expect(page.locator("#status")).toContainText("Saved snowflake-instructions-");
+});
+
+test("save instructions follows six-sided print eligibility", async ({ page }) => {
+  await page.goto(appUrl);
+  await expect(page.locator("#saveInstructionsBtn")).toBeEnabled();
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#optionsSideCountInput").fill("7");
+  await page.locator("#optionsSaveBtn").click();
+
+  await expect(page.locator("#saveInstructionsBtn")).toBeDisabled();
 });
 
 test("stages print paper size changes until options are saved", async ({ page }) => {
@@ -103,6 +131,24 @@ test("tightly frames the print snowflake below its label", async ({ page }) => {
   for (const ratio of paddingRatios) expect(ratio).toBeCloseTo(0.01, 4);
 });
 
+test("browser print layout gives the snowflake preview an explicit rendered size", async ({ page }) => {
+  await page.goto(appUrl);
+  await page.emulateMedia({ media: "print" });
+
+  const previewBox = await page.locator(".printPreviewSvg svg").boundingBox();
+  if (!previewBox) throw new Error("Print preview SVG was not rendered");
+  expect(previewBox.width).toBeGreaterThan(100);
+  expect(previewBox.height).toBeGreaterThan(100);
+  const outline = page.locator(".printPreviewSvg .printPreviewOutline").first();
+  await expect(outline).toHaveCSS("stroke", "rgb(0, 0, 0)");
+  const outlineBounds = await outline.evaluate((path) => {
+    const bounds = path.getBBox();
+    return { width: bounds.width, height: bounds.height };
+  });
+  expect(outlineBounds.width).toBeGreaterThan(0);
+  expect(outlineBounds.height).toBeGreaterThan(0);
+});
+
 test("print preview strokes only cut outlines, not fold seam body paths", async ({ page }) => {
   await page.goto(appUrl);
   const status = await drawPath(page, [
@@ -139,10 +185,22 @@ test("only enables printing for six-sided snowflakes", async ({ page }) => {
   await expect(page.locator("#printBtn")).toBeEnabled();
 
   await page.locator("#optionsBtn").click();
-  await expect(page.getByText("Print functionality is only enabled when using a 6-sided snowflake.")).toBeVisible();
+  await expect(page.getByText("Changing side count will lose current progress.")).toBeHidden();
+  await expect(page.getByText("Print functionality is only enabled when using a 6-sided snowflake.")).toBeHidden();
+
   await page.locator("#optionsSideCountInput").fill("7");
+  await expect(page.getByText("Changing side count will lose current progress.")).toBeVisible();
+  await expect(page.getByText("Print functionality is only enabled when using a 6-sided snowflake.")).toBeVisible();
+
   await page.locator("#optionsSaveBtn").click();
   await expect(page.locator("#printBtn")).toBeDisabled();
+
+  // Re-opening options when starting with a 7-sided snowflake:
+  await page.locator("#optionsBtn").click();
+  // Side count is 7 (not changed from starting value 7) so "Changing side count" is hidden
+  await expect(page.getByText("Changing side count will lose current progress.")).toBeHidden();
+  // But 7 is non-6, so the print warning is visible
+  await expect(page.getByText("Print functionality is only enabled when using a 6-sided snowflake.")).toBeVisible();
 });
 
 test("collection thumbnails use preview svg storage with legacy svg fallback", async ({ page }) => {

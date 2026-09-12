@@ -50,7 +50,7 @@ export default function HelpModal({ open, onClose }) {
               <li><strong>New</strong> starts over after confirmation when you have changes; <strong>Undo</strong> and <strong>Redo</strong> manage your cut history. Use <strong>Ctrl + Z</strong> and <strong>Ctrl + Y</strong>, or <strong>Command + Z</strong> and <strong>Command + Shift + Z</strong> on macOS.</li>
               <li><strong>Random cut</strong> adds a valid example cut for you.</li>
               <li><strong>Save to collection</strong> saves the current design locally. Visit <strong>Collection</strong> to edit or delete saved designs.</li>
-              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
+              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes; <strong>Save instructions</strong> downloads the same layout as a PDF. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
               <li>Click the <strong>Preview</strong> panel to pause or resume the spin.</li>
             </ul>
           </section>
@@ -67,7 +67,7 @@ export default function HelpModal({ open, onClose }) {
               <li><strong>New</strong> starts over after confirmation when you have changes; <strong>Undo</strong> and <strong>Redo</strong> manage your cut history.</li>
               <li><strong>Random cut</strong> adds a valid example cut for you.</li>
               <li><strong>Save to collection</strong> saves the current design locally. Visit <strong>Collection</strong> to edit or delete saved designs.</li>
-              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
+              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes; <strong>Save instructions</strong> downloads the same layout as a PDF. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
               <li>Tap the <strong>Preview</strong> panel to pause or resume the spin.</li>
             </ul>
           </section>

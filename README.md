@@ -23,6 +23,10 @@ Use **Save to collection** to store the current design in browser local storage.
 
 **Options** changes preview mode, body color, interior and exterior outline colors and thicknesses, and side count from 4 through 10. Appearance changes apply live and can be cancelled; saving a side-count change starts a new snowflake and discards the current cuts.
 
+For six-sided snowflakes, **Print** opens the cutting instructions in the
+browser print dialog. **Save instructions** downloads the same instruction
+sheet as a PDF using the selected paper size.
+
 ## Development
 
 Prerequisites: a current Node.js LTS release and npm.

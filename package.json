@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@stratakit/icons": "^0.4.2",
+    "html2canvas": "1.4.1",
+    "jspdf": "4.2.1",
     "polygon-clipping": "^0.15.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

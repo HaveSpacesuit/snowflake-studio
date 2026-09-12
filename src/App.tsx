@@ -13,12 +13,14 @@ import {
   PRINT_CONFIG,
   type PrintPaperSize
 } from "./print/config.ts";
+import { saveInstructionsPdf } from "./print/saveInstructionsPdf.ts";
 
 /** The Studio editor page: draw folded cuts and preview the unfolded snowflake. */
 export default function App() {
   const foldedHostRef = useRef(null);
   const unfoldedHostRef = useRef(null);
   const backgroundCanvasRef = useRef(null);
+  const printSheetRef = useRef<HTMLDivElement>(null);
 
   const { engineRef, status, setStatus, history, activeTool, circleResizeMode, options, canSave } = useStudioEngine({
     foldedHostRef,
@@ -32,6 +34,7 @@ export default function App() {
   const [paperSize, setPaperSize] = useState<PrintPaperSize>(DEFAULT_PRINT_PAPER_SIZE);
   const [paperGeom, setPaperGeom] = useState(null);
   const [previewSvg, setPreviewSvg] = useState("");
+  const [isSavingInstructions, setIsSavingInstructions] = useState(false);
 
   // Refresh the cut geometry used for the print preview whenever the cut
   // history changes (i.e. after any cut, undo, redo, or reset).
@@ -50,6 +53,27 @@ export default function App() {
   const resolveNew = (confirmed) => {
     setNewConfirmOpen(false);
     if (confirmed) engineRef.current?.reset();
+  };
+
+  const handleSaveInstructions = async () => {
+    if (isSavingInstructions) return;
+    const printSheet = printSheetRef.current;
+    if (!printSheet) {
+      setStatus("Could not save instructions: print layout is unavailable.");
+      return;
+    }
+
+    setIsSavingInstructions(true);
+    setStatus("Generating instructions PDF...");
+    try {
+      const filename = await saveInstructionsPdf(printSheet, paperSize);
+      setStatus(`Saved ${filename}.`);
+    } catch (error) {
+      console.error("Could not save instructions PDF", error);
+      setStatus("Could not save instructions PDF. Please try again.");
+    } finally {
+      setIsSavingInstructions(false);
+    }
   };
 
   return (
@@ -89,7 +113,9 @@ export default function App() {
             hostRef={unfoldedHostRef}
             canSave={canSave}
             canPrint={options.sideCount === PRINT_CONFIG.supportedSideCount}
+            isSavingInstructions={isSavingInstructions}
             onSave={() => engineRef.current?.saveToCollection()}
+            onSaveInstructions={handleSaveInstructions}
             onOptions={() => setOptionsOpen(true)}
             onPrint={() => window.print()}
           />
@@ -117,6 +143,7 @@ export default function App() {
         onResolve={resolveNew}
       />
       <PrintSheet
+        sheetRef={printSheetRef}
         paperSize={paperSize}
         paperGeom={paperGeom}
         previewSvg={previewSvg}

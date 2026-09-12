@@ -21,6 +21,7 @@ import { normalizePrintPaperSize, PRINT_CONFIG, type PrintPaperSize } from "../p
 export default function OptionsModal({ open, options, engineRef, onStatus, onClose, paperSize, onPaperSizeChange }) {
   const ref = useRef(null);
   const snapshotRef = useRef(null);
+  const [initialSideCount, setInitialSideCount] = useState(options.sideCount);
   const [pendingSideCount, setPendingSideCount] = useState(options.sideCount);
   const [pendingPaperSize, setPendingPaperSize] = useState<PrintPaperSize>(paperSize);
 
@@ -30,6 +31,7 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
     if (open && !dialog.open) {
       const engine = engineRef.current;
       snapshotRef.current = engine ? engine.getOptions() : normalizeSnowflakeOptions(options);
+      setInitialSideCount(snapshotRef.current.sideCount);
       setPendingSideCount(snapshotRef.current.sideCount);
       setPendingPaperSize(paperSize);
       dialog.returnValue = "";
@@ -208,7 +210,7 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
             onChange={(e) => setPendingSideCount(normalizeSideCount(e.target.value))}
           />
 
-          {pendingSideCount !== snapshotRef.current?.sideCount && (
+          {pendingSideCount !== initialSideCount && (
             <p className="optionsNote optionsNoteSideCount">Changing side count will lose current progress.</p>
           )}
 

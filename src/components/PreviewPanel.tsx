@@ -2,7 +2,16 @@
  * The "Preview" panel: hosts the unfolded snowflake SVG (built by the engine
  * into `hostRef`) plus the save/print/options toolbar and zoom badge.
  */
-export default function PreviewPanel({ hostRef, canSave, canPrint, onSave, onOptions, onPrint }) {
+export default function PreviewPanel({
+  hostRef,
+  canSave,
+  canPrint,
+  isSavingInstructions,
+  onSave,
+  onSaveInstructions,
+  onOptions,
+  onPrint
+}) {
   return (
     <div className="panel">
       <h2 className="panelHeader"><span className="panelTitle">Preview</span></h2>
@@ -19,7 +28,17 @@ export default function PreviewPanel({ hostRef, canSave, canPrint, onSave, onOpt
             disabled={!canPrint}
             title={canPrint ? "Print snowflake instructions" : "Printing instructions is available for six-sided snowflakes only."}
           >
-            Print
+            Print instructions
+          </button>
+          <button
+            id="saveInstructionsBtn"
+            type="button"
+            onClick={onSaveInstructions}
+            disabled={!canPrint || isSavingInstructions}
+            aria-busy={isSavingInstructions}
+            title={canPrint ? "Save snowflake instructions as a PDF" : "Saving instructions is available for six-sided snowflakes only."}
+          >
+            {isSavingInstructions ? "Saving..." : "Save instructions"}
           </button>
           <button id="optionsBtn" type="button" aria-haspopup="dialog" onClick={onOptions}>Options</button>
         </span>
