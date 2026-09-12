@@ -36,13 +36,25 @@ export function normalizeStoredGeomStack(value) {
 // Collection (saved snowflakes)
 // ---------------------------------------------------------------------------
 
+function normalizeCollectionItem(item) {
+  if (!item || typeof item.id !== "string") return null;
+  const previewSvg =
+    typeof item.previewSvg === "string" ? item.previewSvg : typeof item.svg === "string" ? item.svg : "";
+  if (!previewSvg) return null;
+  const { svg, ...storedItem } = item;
+  return {
+    ...storedItem,
+    previewSvg
+  };
+}
+
 export function loadCollectionItems() {
   try {
     const raw = window.localStorage.getItem(COLLECTION_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item) => item && typeof item.id === "string" && typeof item.svg === "string");
+    return parsed.map(normalizeCollectionItem).filter(Boolean);
   } catch (_) {
     return [];
   }
@@ -58,14 +70,14 @@ export function saveCollectionItems(items) {
 }
 
 /** Prepend a new snowflake to the collection, capped at COLLECTION_MAX_ITEMS. */
-export function saveSnowflakeToCollection({ svg, paperGeom, options }) {
-  if (!svg) return false;
+export function saveSnowflakeToCollection({ previewSvg, paperGeom, options }) {
+  if (!previewSvg) return false;
   const items = loadCollectionItems();
   const next = [
     {
       id: String(Date.now()),
       schemaVersion: STORAGE_SCHEMA_VERSION,
-      svg,
+      previewSvg,
       createdAt: Date.now(),
       paperGeom: cloneGeom(paperGeom),
       options: normalizeSnowflakeOptions(options)

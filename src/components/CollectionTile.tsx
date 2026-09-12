@@ -9,7 +9,7 @@ export default function CollectionTile({ item, onEdit, onDelete }) {
   return (
     <article className="collectionTile">
       {/* SVG is generated and stored by this app; render it as markup for the preview. */}
-      <div className="collectionTilePreview" dangerouslySetInnerHTML={{ __html: item.svg }} />
+      <div className="collectionTilePreview" dangerouslySetInnerHTML={{ __html: item.previewSvg }} />
       <div className="collectionTileActions panelActions">
         <button
           type="button"

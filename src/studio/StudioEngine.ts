@@ -62,7 +62,6 @@ import { createBasePaperGeomForSideCount, getOuterBaseForSideCount } from "../ge
 import { normalizeSideCount, normalizeSnowflakeOptions } from "../snowflake/options.ts";
 import { computeSnowflakeSignature, getBasePaperSignature } from "../snowflake/signature.ts";
 import { buildPrintPreviewSvgString } from "../print/previewSvg.ts";
-import { buildExportSvgString } from "../snowflake/svgExport.ts";
 import {
   loadActiveStudioState,
   normalizeStoredGeom,
@@ -211,7 +210,7 @@ export function createStudioEngine(config) {
       lastCollectionSavedSignature: state.lastCollectionSavedSignature,
       options: normalizeSnowflakeOptions(state.options)
     } as any;
-    const previewSvg = getExportSvgString();
+    const previewSvg = getPrintPreviewSvgString();
     if (previewSvg) payload.previewSvg = previewSvg;
     persistActiveStudioState(payload, signature);
   }
@@ -771,13 +770,8 @@ export function createStudioEngine(config) {
   }
 
   // -------------------------------------------------------------------------
-  // Export / save
+  // Print preview / save
   // -------------------------------------------------------------------------
-
-  function getExportSvgString() {
-    updateUnfoldedGeom();
-    return buildExportSvgString(state.unfoldedGeom, state.options, state.unfoldedBaseScale, getUnfoldedSpinAngle());
-  }
 
   /**
    * Static snowflake SVG for the print-sheet preview, rotated 30° to better
@@ -788,48 +782,19 @@ export function createStudioEngine(config) {
     return buildPrintPreviewSvgString(state.unfoldedGeom, state.options, Math.PI / 6);
   }
 
-  function makeExportFilename() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, "0");
-    const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    return `snowflake-${stamp}.svg`;
-  }
-
-  function downloadSvgText(svgText, filename) {
-    const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-
   function addCurrentSnowflakeToCollection() {
-    const svgText = getExportSvgString();
-    if (!svgText) {
+    const previewSvg = getPrintPreviewSvgString();
+    if (!previewSvg) {
       setStatus("Nothing to add yet.");
       return;
     }
-    if (!saveSnowflakeToCollection({ svg: svgText, paperGeom: state.paperGeom, options: state.options })) {
+    if (!saveSnowflakeToCollection({ previewSvg, paperGeom: state.paperGeom, options: state.options })) {
       setStatus("Could not save to collection (storage unavailable).");
       return;
     }
     state.lastCollectionSavedSignature = computeCollectionSignature();
     syncSaveToCollectionControl();
     setStatus("Saved to collection.");
-  }
-
-  function exportSnowflakeSvg() {
-    const svgText = getExportSvgString();
-    if (!svgText) {
-      setStatus("Nothing to export yet.");
-      return;
-    }
-    downloadSvgText(svgText, makeExportFilename());
-    setStatus("SVG downloaded.");
   }
 
   // -------------------------------------------------------------------------
@@ -1798,7 +1763,6 @@ export function createStudioEngine(config) {
     undo: undoLastCut,
     redo: redoLastCut,
     randomCut: applyRandomCut,
-    exportSvg: exportSnowflakeSvg,
     saveToCollection: addCurrentSnowflakeToCollection,
     setOptions: setSnowflakeOptions,
     setActiveTool: (toolId) => setActiveTool(toolId, { announce: true }),

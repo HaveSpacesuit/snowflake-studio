@@ -90,7 +90,6 @@ export default function App() {
             canSave={canSave}
             canPrint={options.sideCount === PRINT_CONFIG.supportedSideCount}
             onSave={() => engineRef.current?.saveToCollection()}
-            onExport={() => engineRef.current?.exportSvg()}
             onOptions={() => setOptionsOpen(true)}
             onPrint={() => window.print()}
           />

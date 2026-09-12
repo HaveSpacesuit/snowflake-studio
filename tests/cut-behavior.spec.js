@@ -113,6 +113,37 @@ test("only enables printing for six-sided snowflakes", async ({ page }) => {
   await expect(page.locator("#printBtn")).toBeDisabled();
 });
 
+test("collection thumbnails use preview svg storage with legacy svg fallback", async ({ page }) => {
+  await page.goto(appUrl);
+  const legacySvg = `<svg xmlns="http://www.w3.org/2000/svg" data-legacy-preview="true" viewBox="0 0 1 1"><path d="M0 0h1v1z"/></svg>`;
+  await page.evaluate((svg) => {
+    window.localStorage.setItem(
+      "snowflakeStudio.collection.v1",
+      JSON.stringify([{ id: "legacy", svg, createdAt: 1 }])
+    );
+  }, legacySvg);
+
+  await page.goto("/collection.html");
+  await expect(page.locator(".collectionTilePreview svg[data-legacy-preview='true']")).toHaveCount(1);
+
+  await page.goto(appUrl);
+  await page.evaluate(() => window.localStorage.removeItem("snowflakeStudio.collection.v1"));
+  const status = await drawPath(page, [
+    { x: 238, y: 100 },
+    { x: 250, y: 145 },
+    { x: 283, y: 205 },
+    { x: 318, y: 250 },
+    { x: 360, y: 255 }
+  ]);
+  expect(statusIsAccepted(status)).toBe(true);
+  await expect(page.locator("#saveToCollectionBtn")).toBeEnabled();
+  await page.locator("#saveToCollectionBtn").click();
+
+  const savedItem = await page.evaluate(() => JSON.parse(window.localStorage.getItem("snowflakeStudio.collection.v1"))[0]);
+  expect(savedItem.previewSvg).toContain("<svg");
+  expect(savedItem.svg).toBeUndefined();
+});
+
 function statusIsAccepted(statusText) {
   return /^Accepted \(/.test(statusText) || /^Cut accepted \(/.test(statusText);
 }
@@ -466,11 +497,11 @@ test.describe("snowflake cut validity", () => {
     expect(afterScale).toBeCloseTo(beforeScale, 6);
   });
 
-  test("export svg button triggers download flow", async ({ page }) => {
+  test("preview toolbar focuses on print instead of svg export", async ({ page }) => {
     await reset(page);
 
-    await page.locator("#exportSvgBtn").click();
-    await expect(page.locator("#status")).toHaveText("SVG downloaded.");
+    await expect(page.locator("#exportSvgBtn")).toHaveCount(0);
+    await expect(page.locator("#printBtn")).toBeVisible();
   });
 
   test("holding shift constrains cut to a straight line", async ({ page }) => {

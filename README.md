@@ -1,6 +1,6 @@
 # Snowflake Studio
 
-Snowflake Studio is a React 19 and Vite app for cutting a folded paper wedge and previewing the unfolded snowflake. It includes a local saved-design collection and SVG export.
+Snowflake Studio is a React 19 and Vite app for cutting a folded paper wedge and previewing the unfolded snowflake. It includes printable cutting instructions and a local saved-design collection.
 
 ## Features
 
@@ -8,7 +8,7 @@ Snowflake Studio is a React 19 and Vite app for cutting a folded paper wedge and
 - Live folded-paper editing and a rotating unfolded preview.
 - Independent zoom on both panels; desktop users can pan a zoomed panel with middle-click drag.
 - Undo and redo controls, with `Ctrl + Z` / `Ctrl + Y` on Windows and Linux, and `Command + Z` / `Command + Shift + Z` on macOS.
-- Appearance and side-count options, SVG export, and locally persisted work in progress.
+- Appearance and side-count options, printable instructions, and locally persisted work in progress.
 - A local Collection page for reopening or deleting saved snowflakes.
 
 ## Using the Studio

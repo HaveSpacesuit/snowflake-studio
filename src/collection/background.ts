@@ -40,7 +40,7 @@ export function createCollectionBackground(canvas) {
 
   function getBackgroundSvgSources(items) {
     const saved = items
-      .map((item) => (typeof item.svg === "string" ? item.svg.trim() : ""))
+      .map((item) => (typeof item.previewSvg === "string" ? item.previewSvg.trim() : ""))
       .filter((svg) => svg.length > 0);
     if (saved.length > 0) {
       return { key: "saved:" + items.map((item) => item.id).join("|"), svgs: saved };
