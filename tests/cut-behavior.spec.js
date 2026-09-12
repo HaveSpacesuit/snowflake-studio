@@ -103,6 +103,37 @@ test("tightly frames the print snowflake below its label", async ({ page }) => {
   for (const ratio of paddingRatios) expect(ratio).toBeCloseTo(0.01, 4);
 });
 
+test("print preview strokes only cut outlines, not fold seam body paths", async ({ page }) => {
+  await page.goto(appUrl);
+  const status = await drawPath(page, [
+    { x: 238, y: 100 },
+    { x: 250, y: 145 },
+    { x: 283, y: 205 },
+    { x: 318, y: 250 },
+    { x: 360, y: 255 }
+  ]);
+  expect(statusIsAccepted(status)).toBe(true);
+
+  await page.locator("#optionsBtn").click();
+  await page.locator("#optionsBodyColorInput").fill("#ff0000");
+  await page.locator("#optionsExteriorColorInput").fill("#999999");
+  await page.locator("#optionsInteriorColorInput").fill("#999999");
+  await page.locator("#optionsExteriorWidthInput").fill("6");
+  await page.locator("#optionsInteriorWidthInput").fill("6");
+  await page.locator("#optionsPreviewModeInput").fill("2");
+  await page.locator("#optionsSaveBtn").click();
+
+  await expect(page.locator(".printPreviewSvg .printPreviewBody")).toHaveCSS("stroke", "none");
+  await expect(page.locator(".printPreviewSvg .printPreviewBody")).toHaveCSS("fill", "none");
+  await expect(page.locator(".printPreviewSvg .printPreviewOutline").first()).toHaveCSS("stroke", "rgb(0, 0, 0)");
+  await expect(page.locator(".printPreviewSvg .printPreviewOutline").first()).toHaveCSS("stroke-width", "0.5px");
+
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator(".printPreviewSvg .printPreviewBody")).toHaveCSS("stroke", "none");
+  await expect(page.locator(".printPreviewSvg .printPreviewOutline").first()).toHaveCSS("stroke", "rgb(0, 0, 0)");
+  await expect(page.locator(".printPreviewSvg .printPreviewOutline").first()).toHaveCSS("stroke-width", "0.5px");
+});
+
 test("only enables printing for six-sided snowflakes", async ({ page }) => {
   await page.goto(appUrl);
   await expect(page.locator("#printBtn")).toBeEnabled();

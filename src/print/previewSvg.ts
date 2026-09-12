@@ -1,20 +1,16 @@
 import { buildUnfoldedOutlinePaths } from "../geometry/outline.ts";
 import { getGeomBounds, multiPolygonToPath } from "../geometry/polygon.ts";
-import { normalizeSnowflakeOptions } from "../snowflake/options.ts";
 import { PRINT_CONFIG } from "./config.ts";
 
 /**
  * Build a tightly framed SVG for the printed snowflake preview.
  */
-export function buildPrintPreviewSvgString(unfoldedGeom, options, spinAngle = 0) {
+export function buildPrintPreviewSvgString(unfoldedGeom, _options, spinAngle = 0) {
   const snowflakePath = multiPolygonToPath(unfoldedGeom);
   const bounds = getGeomBounds(unfoldedGeom);
   if (!snowflakePath || !bounds) return "";
 
   const outlines = buildUnfoldedOutlinePaths(unfoldedGeom);
-  const opts = normalizeSnowflakeOptions(options);
-  const showBody = opts.previewMode !== "outline";
-  const showOutline = opts.previewMode !== "body";
   const cx = (bounds.minX + bounds.maxX) / 2;
   const cy = (bounds.minY + bounds.maxY) / 2;
   const cos = Math.cos(spinAngle);
@@ -48,9 +44,9 @@ export function buildPrintPreviewSvgString(unfoldedGeom, options, spinAngle = 0)
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox}">`,
     `  <g transform="rotate(${rotationDeg} ${cx} ${cy})">`,
-    `    <path d="${snowflakePath}" fill="${showBody ? opts.snowflakeColor : "none"}" fill-rule="evenodd" stroke="none"/>`,
-    `    <path d="${outlines.outerPath}" fill="none" stroke="${showOutline ? opts.outlineExteriorColor : "none"}" stroke-width="${opts.outlineExteriorWidth.toFixed(1)}" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`,
-    `    <path d="${outlines.holePath}" fill="none" stroke="${showOutline ? opts.outlineInteriorColor : "none"}" stroke-width="${opts.outlineInteriorWidth.toFixed(1)}" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`,
+    `    <path class="printPreviewBody" d="${snowflakePath}" fill="none" fill-rule="evenodd" stroke="none"/>`,
+    `    <path class="printPreviewOutline" d="${outlines.outerPath}" fill="none" stroke="#000000" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`,
+    `    <path class="printPreviewOutline" d="${outlines.holePath}" fill="none" stroke="#000000" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`,
     `  </g>`,
     `</svg>`
   ].join("\n");

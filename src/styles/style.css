@@ -561,9 +561,14 @@ button:disabled {
     height: auto;
   }
 
-  /* Preview always renders in plain thin black lines, regardless of the
+  .printPreviewSvg svg .printPreviewBody {
+    fill: none !important;
+    stroke: none !important;
+  }
+
+  /* Preview outlines render in plain thin black lines, regardless of the
      snowflake's configured colors/widths, to keep it print-friendly. */
-  .printPreviewSvg svg path {
+  .printPreviewSvg svg .printPreviewOutline {
     fill: none !important;
     stroke: #000000 !important;
     stroke-width: 0.5 !important;
