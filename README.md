@@ -36,10 +36,16 @@ Prerequisites: a current Node.js LTS release and npm.
 
 ## Deployment
 
-The included `netlify.toml` configures Netlify with:
+The included GitHub Actions workflow deploys the app to GitHub Pages whenever
+changes are pushed to `main`. It:
 
-- Build command: `npm run build`
-- Publish directory: `dist`
-- `/collection` served by `collection.html`
+- Installs dependencies with pnpm.
+- Runs `pnpm run typecheck`.
+- Builds the Vite app with `pnpm run build`.
+- Publishes `dist/` to GitHub Pages.
+- Copies `collection.html` to `collection/index.html` so `/collection/` works
+  as a friendly URL.
 
-To deploy, push the repository to a Git provider, import it into Netlify, and deploy. Netlify reads the included configuration automatically.
+In the repository settings on GitHub, set **Pages > Build and deployment >
+Source** to **GitHub Actions**. You can deploy manually from the **Deploy to
+GitHub Pages** workflow, or push to `main` to deploy automatically.

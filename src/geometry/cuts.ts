@@ -17,6 +17,10 @@ import {
   polygonArea
 } from "./polygon.ts";
 
+type CutValidationOptions = {
+  requireStartOutside?: boolean;
+};
+
 /** Remove near-duplicate points and apply a light 3-tap smoothing pass. */
 export function sanitizeCutPath(points) {
   if (points.length < 3) return points.slice();
@@ -126,7 +130,7 @@ function startsInsidePaper(points, geom, tolerance = 1.5) {
   return distanceToBoundary(start, geom) > tolerance;
 }
 
-export function validateCut(points, geom, options = {}) {
+export function validateCut(points, geom, options: CutValidationOptions = {}) {
   if (points.length < 2) return { valid: false, reason: "Cut too short." };
 
   if (options.requireStartOutside && startsInsidePaper(points, geom)) {
@@ -143,7 +147,7 @@ export function validateCut(points, geom, options = {}) {
   return { valid: false, reason: "Invalid cut: start and end from edges." };
 }
 
-export function getLiveCutPreview(points, geom, options = {}) {
+export function getLiveCutPreview(points, geom, options: CutValidationOptions = {}) {
   if (points.length < 2) return { mode: "none", text: "Drawing..." };
   const raw = sanitizeCutPath(points.slice());
   if (options.requireStartOutside && startsInsidePaper(raw, geom)) {

@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Paper snowflake simulator built with React and Vite.",
   "type": "module",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
