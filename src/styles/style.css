@@ -101,8 +101,26 @@ h1 {
 
 .subtitleActions {
   display: flex;
-  gap: 12px;
+  gap: 0;
   flex: 0 0 auto;
+}
+
+.subtitleActions > button + button {
+  margin-left: -1px;
+}
+
+.subtitleActions > .helpButton {
+  border-radius: 0;
+}
+
+.subtitleActions > .helpButton:first-child {
+  border-top-left-radius: var(--button-corner-radius);
+  border-bottom-left-radius: var(--button-corner-radius);
+}
+
+.subtitleActions > .helpButton:last-child {
+  border-top-right-radius: var(--button-corner-radius);
+  border-bottom-right-radius: var(--button-corner-radius);
 }
 
 .subtitleSpacer {
@@ -233,11 +251,35 @@ button:disabled {
   justify-content: flex-start;
 }
 
-.collectionDeleteBtn {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  border-top-right-radius: var(--button-corner-radius);
-  border-bottom-right-radius: var(--button-corner-radius);
+.toolbarMoreMenu {
+  position: fixed;
+  z-index: 40;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  background: #1d2a3f;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  gap: 2px;
+}
+
+.toolbarMoreMenu button {
+  border: none;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.toolbarMoreMenu button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.toolbarMoreMenuDivider {
+  height: 1px;
+  margin: 2px 4px;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .panel {
@@ -425,6 +467,10 @@ button:disabled {
   align-items: center;
   gap: 0;
   flex-wrap: wrap;
+  /* Grows to fill the space left by `.panelZoomControls` so overflow
+     detection measures real available width, not just its own content. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .panelActions > button + button {
@@ -659,6 +705,23 @@ button:disabled {
 
 .helpGrid li {
   line-height: 1.45;
+}
+
+.helpFooter {
+  margin: 18px 0 0;
+}
+
+.helpFooter a {
+  color: #cde8ff;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: auto;
+}
+
+.helpFooter a:hover,
+.helpFooter a:focus-visible {
+  color: #ffffff;
 }
 
 .optionsGrid {

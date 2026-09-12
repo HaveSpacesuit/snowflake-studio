@@ -3,6 +3,17 @@ import { readFile } from "node:fs/promises";
 
 const appUrl = "/index.html";
 
+test("help dialog includes the bug report link", async ({ page }) => {
+  await page.goto(appUrl);
+  await page.locator("#helpBtn").click();
+
+  await expect(page.locator(".helpModal a")).toHaveAttribute(
+    "href",
+    "https://github.com/HaveSpacesuit/snowflake-studio/issues/new"
+  );
+  await expect(page.locator(".helpModal a")).toHaveCSS("color", "rgb(205, 232, 255)");
+});
+
 test("print instructions button invokes browser print", async ({ page }) => {
   await page.goto(appUrl);
   await page.evaluate(() => {

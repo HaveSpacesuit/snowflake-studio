@@ -30,59 +30,80 @@ export default function HelpModal({ open, onClose }) {
         </div>
 
         <p className="helpLead">
-          Draw on the Edit panel and watch the Preview panel update live. The app is built for
-          edge-to-edge cuts, quick experimentation, saving, and export. For freehand and straight
-          cuts, begin and end just outside the folded shape so your path clearly crosses it.
+          Snowflake Studio simulates cutting a folded triangular wedge of paper. Draw cuts in the
+          <strong> Edit</strong> panel and watch the fully unfolded design update in the
+          <strong> Preview</strong> panel. Work is kept in this browser, so you can experiment
+          freely without creating an account.
         </p>
 
         <div className="helpGrid">
           <section className="helpDesktopOnly">
-            <h3>Controls</h3>
+            <h3>Desktop controls</h3>
             <ul>
-              <li><strong>Wheel</strong> over either panel to zoom in or out.</li>
-              <li><strong>Middle-click and drag</strong> a zoomed panel to pan around.</li>
-              <li>Use the Edit toolbar to pick <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> mode.</li>
-              <li>When starting a cut, click slightly <strong>outside</strong> the folded shape, then cross through it.</li>
-              <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
-              <li><strong>Shift</strong> while drawing is still a straight-line shortcut.</li>
-              <li>In <strong>Circle</strong> mode, use <strong>Ctrl + wheel</strong> or <strong>Command + wheel</strong> on macOS to adjust radius; <strong>click</strong> applies the cut.</li>
-              <li>Hold <strong>Ctrl</strong>, or <strong>Command</strong> on macOS, over Edit to temporarily use the Circle tool; click to apply the circle cut without switching tools.</li>
-              <li><strong>New</strong> starts over after confirmation when you have changes; <strong>Undo</strong> and <strong>Redo</strong> manage your cut history. Use <strong>Ctrl + Z</strong> and <strong>Ctrl + Y</strong>, or <strong>Command + Z</strong> and <strong>Command + Shift + Z</strong> on macOS.</li>
-              <li><strong>Random cut</strong> adds a valid example cut for you.</li>
-              <li><strong>Save to collection</strong> saves the current design locally. Visit <strong>Collection</strong> to edit or delete saved designs.</li>
-              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes; <strong>Save instructions</strong> downloads the same layout as a PDF. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
-              <li>Click the <strong>Preview</strong> panel to pause or resume the spin.</li>
+              <li><strong>Wheel</strong> over either panel zooms that panel. <strong>Middle-click and drag</strong> a zoomed panel to pan.</li>
+              <li>Choose <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> from the Edit tool rail.</li>
+              <li>Hold <strong>Shift</strong> while drawing to make the next freehand stroke straight.</li>
+              <li>In <strong>Circle</strong> mode, move the pointer to position the circle, use <strong>Ctrl + wheel</strong> (or <strong>Command + wheel</strong> on macOS) to resize it, then click to cut.</li>
+              <li>Hold <strong>Ctrl</strong> or <strong>Command</strong> while drawing in Edit to temporarily use Circle mode without changing the selected tool.</li>
+              <li><strong>New</strong> clears the current design after confirmation. <strong>Undo</strong> and <strong>Redo</strong> manage accepted cuts.</li>
+              <li>Keyboard shortcuts are <strong>Ctrl + Z</strong> / <strong>Ctrl + Y</strong> on Windows and Linux, and <strong>Command + Z</strong> / <strong>Command + Shift + Z</strong> on macOS.</li>
             </ul>
           </section>
 
           <section className="helpMobileOnly">
             <h3>Touch controls</h3>
             <ul>
-              <li><strong>Pinch with two fingers</strong> on either panel to zoom in or out.</li>
-              <li>Start each cut a little <strong>outside</strong> the folded shape, then drag through it.</li>
-              <li>Use the Edit toolbar to pick <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> mode.</li>
-              <li>If your start point is very close to an edge, it <strong>snaps to that edge</strong>.</li>
-              <li><strong>Long-press</strong> on the Edit panel to arm straight-line mode, then drag for your next touch cut.</li>
-              <li>In <strong>Circle</strong> mode, tap <strong>Resize circle</strong>, then <strong>pinch</strong> on the Edit panel to resize the circle. Tap Resize circle again to return pinch to zoom.</li>
-              <li><strong>New</strong> starts over after confirmation when you have changes; <strong>Undo</strong> and <strong>Redo</strong> manage your cut history.</li>
-              <li><strong>Random cut</strong> adds a valid example cut for you.</li>
-              <li><strong>Save to collection</strong> saves the current design locally. Visit <strong>Collection</strong> to edit or delete saved designs.</li>
-              <li><strong>Print</strong> opens printable cutting instructions for six-sided snowflakes; <strong>Save instructions</strong> downloads the same layout as a PDF. <strong>Options</strong> changes preview appearance; saving a new side count starts a fresh snowflake.</li>
-              <li>Tap the <strong>Preview</strong> panel to pause or resume the spin.</li>
+              <li><strong>Pinch with two fingers</strong> on either panel to zoom. The zoom badge shows the current scale.</li>
+              <li>Choose <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> from the Edit tool rail.</li>
+              <li><strong>Long-press</strong> on Edit to arm a one-time straight cut, then drag through the paper.</li>
+              <li>In <strong>Circle</strong> mode, tap <strong>Resize circle</strong>, pinch to change the radius, and tap it again when you want pinch to zoom instead.</li>
+              <li><strong>New</strong> clears the current design after confirmation. <strong>Undo</strong> and <strong>Redo</strong> manage accepted cuts.</li>
             </ul>
           </section>
 
           <section>
-            <h3>Cut examples</h3>
+            <h3>Making valid cuts</h3>
             <ul>
-              <li>Start just outside one edge, sweep through the folded paper, and finish just outside another edge.</li>
-              <li>A cut can leave and return to the <strong>same edge</strong> as long as both endpoints land on edges.</li>
-              <li className="helpDesktopOnly">Try a short straight slice with <strong>Shift</strong> held down, or a longer curved pass for something more organic.</li>
-              <li className="helpMobileOnly">Try a short straight slice after a <strong>long-press</strong>, or a longer curved pass for something more organic.</li>
-              <li>Freehand and straight cuts that start or end in the interior will be rejected. Circle cuts are valid when they are fully inside the paper or overlap its edge.</li>
+              <li>For freehand and straight cuts, begin and end just <strong>outside</strong> the folded paper so the path clearly crosses an edge. A start point close to an edge snaps to that edge.</li>
+              <li>A cut may leave and return through the <strong>same edge</strong>; both endpoints still need to reach an edge.</li>
+              <li>Interior-only freehand and straight strokes are rejected. If a stroke is rejected, simplify it or start farther outside the paper.</li>
+              <li>Circle cuts are valid when the circle is inside the paper or overlaps its edge. A circle that does not overlap the paper does not remove anything.</li>
+              <li><strong>Random cut</strong> creates a valid example cut and limits the amount removed so it is safe for exploring the editor.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>Preview and appearance</h3>
+            <ul>
+              <li>The Preview panel unfolds the current folded geometry and spins it automatically. Click or tap Preview to pause or resume the spin.</li>
+              <li>Use <strong>Options</strong> to choose outline, body, or outline-and-body preview; set body and interior/exterior outline colors; and adjust outline thickness.</li>
+              <li>Options are applied live while the dialog is open. Choose <strong>Cancel</strong> to restore the values from when it opened, or <strong>Restore defaults</strong> to stage the default appearance.</li>
+              <li>Side count can be set from <strong>4 through 10</strong>. Saving a changed side count starts a new snowflake because the folded base geometry changes.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>Save, share, and print</h3>
+            <ul>
+              <li><strong>Save to collection</strong> stores the current design in this browser's local storage. The in-progress Studio design is also restored when you return to the app.</li>
+              <li>Open <strong>Collection</strong> to edit, share, delete, or print a saved design. Editing replaces the current Studio design only after confirmation.</li>
+              <li><strong>Share</strong> downloads a portable <code>.snowflake.json</code> file. On another device, open Collection, choose <strong>Import</strong>, and select that file.</li>
+              <li>The collection keeps up to <strong>120 designs</strong>; saving a new design adds it to the front and removes the oldest design when the limit is exceeded.</li>
+              <li><strong>Print instructions</strong> opens the browser print dialog. <strong>Save instructions</strong> downloads a PDF. Both are enabled only for six-sided snowflakes and support Letter or A4 paper in Options.</li>
+              <li>Printing uses the instruction sheet, not the animated Preview panel. Check the browser print preview and choose the paper size before confirming.</li>
             </ul>
           </section>
         </div>
+
+        <p className="helpFooter">
+          <a
+            href="https://github.com/HaveSpacesuit/snowflake-studio/issues/new"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Submit bug report
+          </a>
+        </p>
       </form>
     </dialog>
   );

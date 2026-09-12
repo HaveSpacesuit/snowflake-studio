@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import BackgroundCanvas from "./components/BackgroundCanvas.tsx";
 import SiteNav from "./components/SiteNav.tsx";
 import CollectionGrid from "./components/CollectionGrid.tsx";
 import ConfirmDialog from "./components/ConfirmDialog.tsx";
+import PrintSheet from "./components/PrintSheet.tsx";
 import { useConfirm } from "./hooks/useConfirm.ts";
 import { createCollectionBackground } from "./collection/background.ts";
 import { downloadSnowflakeShareFile, parseSnowflakeShareFileText } from "./snowflake/shareFile.ts";
+import { normalizeSnowflakeOptions } from "./snowflake/options.ts";
+import { DEFAULT_PRINT_PAPER_SIZE } from "./print/config.ts";
+import { saveInstructionsPdf } from "./print/saveInstructionsPdf.ts";
 import {
   isNonEmptyStudioStatePresent,
   loadCollectionItems,
+  normalizeStoredGeom,
   saveAsActiveStudioSnowflake,
   saveCollectionItems,
   saveSnowflakeToCollection
@@ -19,8 +25,11 @@ export default function CollectionApp() {
   const backgroundCanvasRef = useRef(null);
   const backgroundRef = useRef(null);
   const importInputRef = useRef(null);
+  const printSheetRef = useRef(null);
   const [items, setItems] = useState(() => loadCollectionItems());
   const [status, setStatus] = useState("");
+  const [printTarget, setPrintTarget] = useState(null);
+  const [isSavingInstructions, setIsSavingInstructions] = useState(false);
   const { confirm, dialogProps } = useConfirm();
 
   useEffect(() => {
@@ -105,6 +114,60 @@ export default function CollectionApp() {
     setStatus("Snowflake imported into your collection.");
   };
 
+  /**
+   * Build the hidden print-sheet payload for a specific tile's snowflake. This
+   * never touches the Studio's active snowflake state.
+   */
+  const buildPrintTarget = (item) => {
+    const paperGeom = normalizeStoredGeom(item.paperGeom);
+    if (!paperGeom) return null;
+    const options = normalizeSnowflakeOptions(item.options);
+    return {
+      paperGeom,
+      sideCount: options.sideCount,
+      previewSvg: typeof item.previewSvg === "string" ? item.previewSvg : ""
+    };
+  };
+
+  const handlePrintItem = (item) => {
+    const target = buildPrintTarget(item);
+    if (!target) {
+      setStatus("Could not print: this snowflake's geometry is unavailable.");
+      return;
+    }
+    // Force the print sheet to reflect this item before invoking print, since
+    // window.print() reads the DOM synchronously.
+    flushSync(() => setPrintTarget(target));
+    window.print();
+  };
+
+  const handleSaveInstructionsItem = async (item) => {
+    if (isSavingInstructions) return;
+    const target = buildPrintTarget(item);
+    if (!target) {
+      setStatus("Could not save instructions: this snowflake's geometry is unavailable.");
+      return;
+    }
+    flushSync(() => setPrintTarget(target));
+    const printSheet = printSheetRef.current;
+    if (!printSheet) {
+      setStatus("Could not save instructions: print layout is unavailable.");
+      return;
+    }
+
+    setIsSavingInstructions(true);
+    setStatus("Generating instructions PDF...");
+    try {
+      const filename = await saveInstructionsPdf(printSheet, DEFAULT_PRINT_PAPER_SIZE);
+      setStatus(`Saved ${filename}.`);
+    } catch (error) {
+      console.error("Could not save instructions PDF", error);
+      setStatus("Could not save instructions PDF. Please try again.");
+    } finally {
+      setIsSavingInstructions(false);
+    }
+  };
+
   return (
     <>
       <BackgroundCanvas ref={backgroundCanvasRef} />
@@ -137,13 +200,28 @@ export default function CollectionApp() {
         </div>
 
         <section className="views collectionViews">
-          <CollectionGrid items={items} onEdit={handleEdit} onShare={handleShare} onDelete={handleDelete} />
+          <CollectionGrid
+            items={items}
+            onEdit={handleEdit}
+            onShare={handleShare}
+            onDelete={handleDelete}
+            onPrint={handlePrintItem}
+            onSaveInstructions={handleSaveInstructionsItem}
+            isSavingInstructions={isSavingInstructions}
+          />
         </section>
 
         {status && <p id="collectionStatus" className="statusBar">{status}</p>}
       </main>
 
       <ConfirmDialog {...dialogProps} />
+      <PrintSheet
+        sheetRef={printSheetRef}
+        paperSize={DEFAULT_PRINT_PAPER_SIZE}
+        paperGeom={printTarget?.paperGeom ?? null}
+        previewSvg={printTarget?.previewSvg ?? ""}
+        sideCount={printTarget?.sideCount ?? 6}
+      />
     </>
   );
 }

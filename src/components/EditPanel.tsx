@@ -1,9 +1,12 @@
+import { useRef } from "react";
 import svgDraw from "@stratakit/icons/draw.svg";
 import svgLine from "@stratakit/icons/line.svg";
 import svgArc from "@stratakit/icons/arc.svg";
 import svgAutomagic from "@stratakit/icons/automagic.svg";
 import svgMeasureRadius from "@stratakit/icons/measure-radius.svg";
 import VerticalToolRail from "./VerticalToolRail.tsx";
+import ToolbarMoreMenu from "./ToolbarMoreMenu.tsx";
+import { useToolbarOverflow } from "../hooks/useToolbarOverflow.ts";
 
 /**
  * The "Edit" panel: hosts the folded-paper SVG (built by the engine into
@@ -58,6 +61,13 @@ export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUn
     }
   ];
 
+  const actionsRef = useRef(null);
+  const newBtnRef = useRef(null);
+  const undoBtnRef = useRef(null);
+  const redoBtnRef = useRef(null);
+  const moreBtnRef = useRef(null);
+  const compact = useToolbarOverflow(actionsRef, [newBtnRef, undoBtnRef, redoBtnRef]);
+
   return (
     <div className="panel">
       <h2 className="panelHeader"><span className="panelTitle">Edit</span></h2>
@@ -66,10 +76,19 @@ export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUn
         <div className="panelSvgHost" ref={hostRef} />
       </div>
       <div className="panelToolbar">
-        <span className="panelActions">
-          <button id="resetBtn" type="button" onClick={onNew}>New</button>
-          <button id="undoBtn" type="button" onClick={onUndo} disabled={!canUndo}>Undo</button>
-          <button id="redoBtn" type="button" onClick={onRedo} disabled={!canRedo}>Redo</button>
+        <span className="panelActions" ref={actionsRef}>
+          <button id="resetBtn" ref={newBtnRef} type="button" onClick={onNew}>New</button>
+          <button id="undoBtn" ref={undoBtnRef} type="button" hidden={compact} onClick={onUndo} disabled={!canUndo}>Undo</button>
+          <button id="redoBtn" ref={redoBtnRef} type="button" hidden={compact} onClick={onRedo} disabled={!canRedo}>Redo</button>
+          {compact && (
+            <ToolbarMoreMenu
+              ref={moreBtnRef}
+              items={[
+                { key: "undo", label: "Undo", disabled: !canUndo, onClick: onUndo },
+                { key: "redo", label: "Redo", disabled: !canRedo, onClick: onRedo }
+              ]}
+            />
+          )}
         </span>
         <span className="panelZoomControls">
           <button type="button" data-zoom-reset-for="foldedCanvas" hidden>Reset</button>
