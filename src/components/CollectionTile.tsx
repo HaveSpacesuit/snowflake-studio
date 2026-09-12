@@ -1,8 +1,8 @@
 import { normalizeStoredGeom } from "../snowflake/storage.ts";
 import { normalizeSnowflakeOptions } from "../snowflake/options.ts";
 
-/** A single saved snowflake with Edit/Delete actions. */
-export default function CollectionTile({ item, onEdit, onDelete }) {
+/** A single saved snowflake with Edit/Share/Delete actions. */
+export default function CollectionTile({ item, onEdit, onShare, onDelete }) {
   const editableGeom = normalizeStoredGeom(item.paperGeom);
   const hasEditableGeom = Boolean(editableGeom);
 
@@ -19,6 +19,15 @@ export default function CollectionTile({ item, onEdit, onDelete }) {
           onClick={() => onEdit(editableGeom, normalizeSnowflakeOptions(item.options))}
         >
           Edit
+        </button>
+        <button
+          type="button"
+          className="collectionShareBtn"
+          disabled={!hasEditableGeom}
+          title={hasEditableGeom ? "Save this snowflake as a file to share" : "This saved snowflake cannot be shared"}
+          onClick={() => onShare(item)}
+        >
+          Share
         </button>
         <button type="button" className="collectionDeleteBtn" onClick={() => onDelete(item)}>
           Delete

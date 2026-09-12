@@ -1,7 +1,7 @@
 import CollectionTile from "./CollectionTile.tsx";
 
 /** The collection grid, or an empty-state placeholder when nothing is saved. */
-export default function CollectionGrid({ items, onEdit, onDelete }) {
+export default function CollectionGrid({ items, onEdit, onShare, onDelete }) {
   const isEmpty = items.length === 0;
 
   return (
@@ -9,7 +9,7 @@ export default function CollectionGrid({ items, onEdit, onDelete }) {
       <h2 className="panelHeader"><span className="panelTitle">Collection</span></h2>
       <div id="collectionGrid" className="collectionGrid" aria-label="Saved snowflakes" hidden={isEmpty}>
         {items.map((item) => (
-          <CollectionTile key={item.id} item={item} onEdit={onEdit} onDelete={onDelete} />
+          <CollectionTile key={item.id} item={item} onEdit={onEdit} onShare={onShare} onDelete={onDelete} />
         ))}
       </div>
       <div id="collectionEmpty" className="collectionPlaceholder" role="status" hidden={!isEmpty}>

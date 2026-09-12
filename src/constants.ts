@@ -60,6 +60,12 @@ export const STORAGE_SCHEMA_VERSION = 1;
 export const COLLECTION_MAX_ITEMS = 120;
 
 // ---------------------------------------------------------------------------
+// Shareable snowflake files (exported/imported via the Collection page)
+// ---------------------------------------------------------------------------
+export const SHARE_FILE_TYPE = "snowflake-studio-share";
+export const SHARE_FILE_SCHEMA_VERSION = 1;
+
+// ---------------------------------------------------------------------------
 // Snowflake options
 // ---------------------------------------------------------------------------
 export const DEFAULT_SIDE_COUNT = 6;

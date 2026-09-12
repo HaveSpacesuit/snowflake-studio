@@ -99,6 +99,12 @@ h1 {
   border-radius: var(--button-corner-radius);
 }
 
+.subtitleActions {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
 .subtitleSpacer {
   visibility: hidden;
   pointer-events: none;
