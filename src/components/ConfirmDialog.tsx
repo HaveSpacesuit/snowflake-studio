@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useDialogFocus } from "../hooks/useDialogFocus.ts";
 
 /**
  * A native `<dialog>` that shows/hides based on `open` and resolves with a
@@ -12,7 +13,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   onResolve
 }) {
-  const ref = useRef(null);
+  const ref = useDialogFocus(open);
 
   useEffect(() => {
     const dialog = ref.current;

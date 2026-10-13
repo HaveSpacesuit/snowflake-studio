@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
+import { useDialogFocus } from "../hooks/useDialogFocus.ts";
 
 /** Static "How to use" dialog, shown from the Studio header. */
 export default function HelpModal({ open, onClose }) {
-  const ref = useRef(null);
+  const ref = useDialogFocus(open);
 
   useEffect(() => {
     const dialog = ref.current;

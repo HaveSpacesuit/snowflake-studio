@@ -1,0 +1,133 @@
+import { test, expect } from "@playwright/test";
+
+async function expectFocusCycle(page, controls) {
+  await expect(controls[0]).toBeFocused();
+  for (let cycle = 0; cycle < 2; cycle += 1) {
+    for (let index = 0; index < controls.length; index += 1) {
+      await page.keyboard.press("Tab");
+      await expect(controls[(index + 1) % controls.length]).toBeFocused();
+    }
+    for (let index = controls.length - 1; index >= 0; index -= 1) {
+      await page.keyboard.press("Shift+Tab");
+      await expect(controls[index]).toBeFocused();
+    }
+  }
+}
+
+const dialogs = [
+  {
+    name: "Help",
+    launcher: "#helpBtn",
+    controls: [".helpCloseButton", ".helpFooter a"],
+    closeButtons: [".helpCloseButton"]
+  },
+  {
+    name: "Options",
+    launcher: "#optionsBtn",
+    controls: [
+      "#optionsPreviewModeInput",
+      "#optionsExteriorColorInput",
+      "#optionsExteriorWidthInput",
+      "#optionsInteriorColorInput",
+      "#optionsInteriorWidthInput",
+      "#optionsBodyColorInput",
+      "#optionsSideCountInput",
+      "#printPaperSize",
+      "#optionsRestoreDefaultsBtn",
+      "#optionsCancelBtn",
+      "#optionsSaveBtn"
+    ],
+    closeButtons: ["#optionsCancelBtn", "#optionsSaveBtn"]
+  },
+  {
+    name: "Studio confirmation",
+    launcher: "#resetBtn",
+    controls: ["button[value='cancel']", "#collectionConfirmOk"],
+    closeButtons: ["button[value='cancel']", "#collectionConfirmOk"],
+    prepare: async (page) => {
+      await page.locator("#randomCutBtn").click();
+      await expect(page.locator("#undoBtn")).toBeEnabled();
+    }
+  },
+  {
+    name: "Collection confirmation",
+    launcher: "#clearCollectionBtn",
+    controls: ["button[value='cancel']", "#collectionConfirmOk"],
+    closeButtons: ["button[value='cancel']", "#collectionConfirmOk"],
+    prepare: async (page) => {
+      await page.evaluate(() => {
+        localStorage.setItem(
+          "snowflakeStudio.collection.v1",
+          JSON.stringify([{ id: "focus-test", svg: "<svg></svg>", createdAt: 1 }])
+        );
+      });
+      await page.goto("/collection.html");
+    }
+  }
+];
+
+for (const { name, launcher, controls, closeButtons, prepare } of dialogs) {
+  test(`${name} traps Tab and Shift+Tab and restores focus after closing`, async ({ page }) => {
+    await page.goto("/index.html");
+    const launchingControl = page.locator(launcher);
+    const dialog = page.locator("dialog[open]");
+
+    for (const closeMethod of ["Escape", "backdrop", ...closeButtons]) {
+      if (prepare) await prepare(page);
+      await launchingControl.click();
+      await expect(dialog).toBeVisible();
+      await expectFocusCycle(page, controls.map((selector) => dialog.locator(selector)));
+
+      if (closeMethod === "Escape") {
+        await page.keyboard.press("Escape");
+      } else if (closeMethod === "backdrop") {
+        await page.mouse.click(5, 5);
+      } else {
+        await dialog.locator(closeMethod).click();
+      }
+      await expect(dialog).toHaveCount(0);
+      await expect(launchingControl).toBeFocused();
+    }
+  });
+}
+
+test("Options focus cycle updates when controls become enabled or disabled", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.locator("#optionsBtn").click();
+  const dialog = page.locator("dialog[open]");
+  const mode = dialog.locator("#optionsPreviewModeInput");
+
+  await mode.fill("2");
+  await expect(dialog.locator("#optionsExteriorColorInput")).toBeDisabled();
+  await expect(dialog.locator("#optionsBodyColorInput")).toBeEnabled();
+  await mode.focus();
+  await expectFocusCycle(page, [
+    mode,
+    dialog.locator("#optionsBodyColorInput"),
+    ...dialogs[1].controls.slice(6).map((selector) => dialog.locator(selector))
+  ]);
+
+  await mode.fill("1");
+  await expect(dialog.locator("#optionsExteriorColorInput")).toBeEnabled();
+  await mode.focus();
+  const controls = dialogs[1].controls.map((selector) => dialog.locator(selector));
+  await expectFocusCycle(page, controls);
+});
+
+test("dialog focus stays contained with one or no tabbable controls", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.locator("#helpBtn").click();
+  const dialog = page.locator("dialog[open]");
+  const close = dialog.locator(".helpCloseButton");
+  await dialog.locator(".helpFooter a").evaluate((link) => { link.hidden = true; });
+  await expectFocusCycle(page, [close]);
+
+  await close.evaluate((button) => { button.disabled = true; });
+  await dialog.focus();
+  for (const key of ["Tab", "Shift+Tab"]) {
+    await page.keyboard.press(key);
+    await expect(dialog).toBeFocused();
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.locator("#helpBtn")).toBeFocused();
+});
