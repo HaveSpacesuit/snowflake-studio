@@ -1031,6 +1031,15 @@ export function createStudioEngine(config) {
   }
 
   function handleHistoryShortcut(evt) {
+    const target = evt.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.closest("input, textarea, select") ||
+        target.isContentEditable ||
+        target.closest('[role="textbox"], [role="searchbox"]'))
+    ) {
+      return;
+    }
     const modifierPressed = evt.ctrlKey || evt.metaKey;
     if (!modifierPressed || evt.altKey) return;
     const key = evt.key.toLowerCase();
