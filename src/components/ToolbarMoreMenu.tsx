@@ -1,4 +1,4 @@
-import { Fragment, forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Fragment, forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -19,15 +19,37 @@ const ToolbarMoreMenu = forwardRef<HTMLButtonElement, any>(function ToolbarMoreM
   const menuRef = useRef(null);
   useImperativeHandle(forwardedRef, () => buttonRef.current, []);
 
+  const updatePosition = () => {
+    const button = buttonRef.current;
+    if (!button) return;
+
+    const rect = button.getBoundingClientRect();
+    const menu = menuRef.current;
+    const viewportWidth = document.documentElement.clientWidth;
+    const viewportHeight = document.documentElement.clientHeight;
+    const menuWidth = menu?.getBoundingClientRect().width ?? 190;
+    const menuHeight = menu?.getBoundingClientRect().height ?? 0;
+    const spaceBelow = viewportHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const openAbove = menuHeight > spaceBelow && spaceAbove > spaceBelow;
+    const maxTop = Math.max(8, viewportHeight - menuHeight - 8);
+    const top = Math.min(
+      Math.max(openAbove ? rect.top - menuHeight - 4 : rect.bottom + 4, 8),
+      maxTop
+    );
+    const left = Math.min(Math.max(rect.left, 8), Math.max(8, viewportWidth - menuWidth - 8));
+
+    setMenuPosition((current) =>
+      current?.top === top && current?.left === left ? current : { top, left }
+    );
+  };
+
+  useLayoutEffect(() => {
+    if (open) updatePosition();
+  }, [open, menuPosition]);
+
   useEffect(() => {
     if (!open) return;
-
-    const updatePosition = () => {
-      const button = buttonRef.current;
-      if (!button) return;
-      const rect = button.getBoundingClientRect();
-      setMenuPosition({ top: rect.bottom + 4, left: rect.left });
-    };
 
     const handlePointerDown = (event) => {
       if (buttonRef.current?.contains(event.target) || menuRef.current?.contains(event.target)) return;
@@ -38,7 +60,6 @@ const ToolbarMoreMenu = forwardRef<HTMLButtonElement, any>(function ToolbarMoreM
       if (event.key === "Escape") setOpen(false);
     };
 
-    updatePosition();
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     document.addEventListener("pointerdown", handlePointerDown);

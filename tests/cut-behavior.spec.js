@@ -41,6 +41,30 @@ test("print instructions button invokes browser print", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__printCalls)).toBe(1);
 });
 
+test("Preview More menu stays inside a short mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 260 });
+  await page.goto(appUrl);
+
+  const moreButton = page.getByRole("button", { name: "More" });
+  await expect(moreButton).toBeVisible();
+  await moreButton.evaluate((button) => {
+    button.style.position = "fixed";
+    button.style.right = "8px";
+    button.style.bottom = "8px";
+  });
+  await moreButton.click();
+
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem")).toHaveCount(3);
+  const menuBox = await menu.boundingBox();
+  const buttonBox = await moreButton.boundingBox();
+  if (!menuBox || !buttonBox) throw new Error("Preview More menu was not rendered");
+
+  expect(menuBox.y).toBeGreaterThanOrEqual(0);
+  expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(260);
+  expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(buttonBox.y);
+});
+
 test("save instructions downloads the print layout as a PDF", async ({ page }) => {
   await page.goto(appUrl);
 
