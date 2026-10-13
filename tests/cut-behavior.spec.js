@@ -1273,6 +1273,64 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator("#undoBtn")).toBeDisabled();
   });
 
+  for (const interruption of ["left", "right", "top", "bottom", "pointercancel"]) {
+    test(`touch Circle interruption at ${interruption} clears the draft and allows a fresh tap`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await reset(page);
+      await selectTool(page, "Circle tool");
+
+      const canvas = page.locator("#foldedCanvas");
+      await canvas.evaluate((canvas) => {
+        canvas.setPointerCapture = () => {};
+        canvas.releasePointerCapture = () => {};
+      });
+      const paper = canvas.locator('[data-role="paper-shape"]');
+      const preview = page.locator('#unfoldedCanvas [data-role="snowflake-shape"]');
+      const liveCut = canvas.locator('[data-role="live-cut"]');
+      const initialPath = await paper.getAttribute("d");
+      const initialPreview = await preview.getAttribute("d");
+      const initialArea = await whitePixelCount(page);
+      const point = { x: 230, y: 220 };
+
+      await touchFoldedPoint(page, "pointerdown", 1, point);
+      await touchFoldedPoint(page, "pointermove", 1, { x: 240, y: 220 });
+      await expect(liveCut).not.toHaveAttribute("d", "");
+
+      if (interruption === "pointercancel") {
+        await touchFoldedPoint(page, "pointercancel", 1, point);
+        await expect(page.locator("#status")).toHaveText("Cut cancelled.");
+      } else {
+        const box = await canvas.boundingBox();
+        if (!box) throw new Error("Folded canvas not found");
+        const outside = {
+          clientX: interruption === "left" ? box.x - 10
+            : interruption === "right" ? box.x + box.width + 10 : box.x + box.width / 2,
+          clientY: interruption === "top" ? box.y - 10
+            : interruption === "bottom" ? box.y + box.height + 10 : box.y + box.height / 2,
+          pointerId: 1,
+          pointerType: "touch"
+        };
+        await canvas.dispatchEvent("pointermove", outside);
+        await canvas.dispatchEvent("pointerup", outside);
+        await expect(page.locator("#status")).toHaveText("Ready");
+      }
+
+      await expect(liveCut).toHaveAttribute("d", "");
+      await expect(liveCut).toBeHidden();
+      await expect(paper).toHaveAttribute("d", initialPath);
+      await expect(preview).toHaveAttribute("d", initialPreview);
+      expect(await whitePixelCount(page)).toBe(initialArea);
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+
+      await touchFoldedPoint(page, "pointerdown", 2, point);
+      await expect(liveCut).not.toHaveAttribute("d", "");
+      await touchFoldedPoint(page, "pointerup", 2, point);
+      await expect(page.locator("#status")).toContainText("Circle cut applied");
+      expect(await whitePixelCount(page)).toBeLessThan(initialArea);
+      await expect(page.locator("#undoBtn")).toBeEnabled();
+    });
+  }
+
   test("touch pinch resizes the circle preview when resize mode is enabled", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");

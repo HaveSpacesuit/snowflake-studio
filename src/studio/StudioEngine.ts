@@ -1472,12 +1472,17 @@ export function createStudioEngine(config) {
       }
 
       if (state.activeTool === TOOL_CIRCLE && !state.drawing) {
+        const canvasPt = getSvgPoint(evt, foldedSvg);
         const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
         if (state.touchDrawStartPoint && dist(state.touchDrawStartPoint, pt) > TOUCH_DRAG_TOL) {
           state.touchDrawMoved = true;
         }
 
-        if (state.touchDrawStartPoint && !state.touchDrawMoved && !state.circleResizeMode) {
+        if (canvasPt.x < 0 || canvasPt.x > DISPLAY_WIDTH || canvasPt.y < 0 || canvasPt.y > DISPLAY_HEIGHT) {
+          clearCirclePreview();
+          setStatus("Ready");
+          render();
+        } else if (state.touchDrawStartPoint && !state.touchDrawMoved && !state.circleResizeMode) {
           updateCirclePreview(pt, false);
           applyCircleCutAtCursor(pt);
         } else {
@@ -1547,6 +1552,7 @@ export function createStudioEngine(config) {
     state.touchDrawStartPoint = null;
     state.touchDrawMoved = false;
     state.touchDrawStartTime = 0;
+    state.circleHoverPoint = null;
     state.livePreview = { mode: "none", text: "Ready" };
     setStatus("Cut cancelled.");
     render();
