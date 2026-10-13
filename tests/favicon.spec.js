@@ -1,8 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 for (const appUrl of ["/index.html", "/collection.html"]) {
   for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
-    test(`${appUrl} loads without a favicon request at ${viewport.width}px`, async ({ page }) => {
+    test(`${appUrl} serves the SVG favicon without fallback requests at ${viewport.width}px`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const faviconRequests = [];
       const failedResources = [];
@@ -20,7 +21,16 @@ for (const appUrl of ["/index.html", "/collection.html"]) {
 
       await page.goto(appUrl, { waitUntil: "networkidle" });
 
-      await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "data:,");
+      const favicon = page.locator('link[rel="icon"]');
+      await expect(favicon).toHaveAttribute("type", "image/svg+xml");
+      await expect(favicon).toHaveAttribute("href", /^(?:\.\/|\/)favicon\.svg$/);
+      const faviconUrl = new URL(await favicon.getAttribute("href"), page.url()).href;
+      const response = await page.request.get(faviconUrl);
+      expect(response.ok()).toBe(true);
+      expect(response.headers()["content-type"]).toContain("image/svg+xml");
+      expect(await response.text()).toBe(
+        await readFile(new URL("../favicon.svg", import.meta.url), "utf8")
+      );
       expect(faviconRequests).toEqual([]);
       expect(failedResources).toEqual([]);
     });
