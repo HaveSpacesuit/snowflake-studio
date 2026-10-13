@@ -788,6 +788,7 @@ export function createStudioEngine(config) {
     }
     state.lastCollectionSavedSignature = computeCollectionSignature();
     syncSaveToCollectionControl();
+    persistState();
     setStatus("Saved to collection.");
   }
 
