@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useDialogFocus } from "../hooks/useDialogFocus.ts";
 import {
   OUTLINE_WIDTH_MAX,
   OUTLINE_WIDTH_MIN,
@@ -19,7 +20,7 @@ import { normalizePrintPaperSize, PRINT_CONFIG, type PrintPaperSize } from "../p
  * a fresh snowflake) on Save. Cancelling reverts to the snapshot taken on open.
  */
 export default function OptionsModal({ open, options, engineRef, onStatus, onClose, paperSize, onPaperSizeChange }) {
-  const ref = useRef(null);
+  const ref = useDialogFocus(open);
   const snapshotRef = useRef(null);
   const [initialSideCount, setInitialSideCount] = useState(options.sideCount);
   const [pendingSideCount, setPendingSideCount] = useState(options.sideCount);
