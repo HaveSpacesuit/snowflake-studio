@@ -479,6 +479,21 @@ async function clickFoldedPoint(page, point) {
   await page.mouse.click(target.x, target.y);
 }
 
+async function touchFoldedPoint(page, type, pointerId, point) {
+  const canvas = page.locator("#foldedCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Folded canvas not found");
+
+  const intrinsic = await panelSize(canvas);
+  const target = await foldedPointToPage(page, box, intrinsic, point);
+  await canvas.dispatchEvent(type, {
+    pointerId,
+    pointerType: "touch",
+    clientX: target.x,
+    clientY: target.y
+  });
+}
+
 async function whitePixelCount(page) {
   return await page.evaluate(() => {
     if (typeof window.__snowflakePaperArea === "number") {
@@ -1218,4 +1233,85 @@ test.describe("snowflake cut validity", () => {
 
     await expect(page.locator("#status")).toContainText("radius (68 px)");
   });
+
+  for (const [firstRelease, resizeMode] of [
+    ["pointerup", true],
+    ["pointercancel", true],
+    ["pointerup", false]
+  ]) {
+    for (const firstPointer of [1, 2]) {
+      test(`circle ${resizeMode ? "resize" : "zoom"} pinch does not cut after ${firstRelease} of finger ${firstPointer}`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
+        await reset(page);
+        await selectTool(page, "Circle tool");
+        if (resizeMode) await toolButton(page, "Resize circle").click();
+
+        const canvas = page.locator("#foldedCanvas");
+        await canvas.evaluate((canvas) => {
+          canvas.setPointerCapture = () => {};
+          canvas.releasePointerCapture = () => {};
+        });
+        const paper = canvas.locator('[data-role="paper-shape"]');
+        const initialPath = await paper.getAttribute("d");
+        const initialArea = await whitePixelCount(page);
+        const points = { 1: { x: 230, y: 220 }, 2: { x: 270, y: 220 } };
+
+        await touchFoldedPoint(page, "pointerdown", 1, points[1]);
+        await touchFoldedPoint(page, "pointerdown", 2, { x: 250, y: 220 });
+        await touchFoldedPoint(page, "pointermove", 2, points[2]);
+        if (resizeMode) {
+          await expect(page.locator("#status")).toContainText("radius (68 px)");
+        }
+        expect(await zoomScale(page, "#foldedCanvas")).toBe(resizeMode ? 1 : 2);
+
+        await touchFoldedPoint(page, firstRelease, firstPointer, points[firstPointer]);
+        await expect(paper).toHaveAttribute("d", initialPath);
+        const remainingPointer = firstPointer === 1 ? 2 : 1;
+        await touchFoldedPoint(page, "pointerup", remainingPointer, points[remainingPointer]);
+        await expect(paper).toHaveAttribute("d", initialPath);
+        expect(await whitePixelCount(page)).toBe(initialArea);
+        await expect(page.locator("#undoBtn")).toBeDisabled();
+
+        if (resizeMode) await toolButton(page, "Resize circle").click();
+        await touchFoldedPoint(page, "pointerdown", 3, points[1]);
+        await touchFoldedPoint(page, "pointerup", 3, points[1]);
+        await expect(page.locator("#status")).toContainText("Circle cut applied");
+        expect(await whitePixelCount(page)).toBeLessThan(initialArea);
+        await expect(page.locator("#undoBtn")).toBeEnabled();
+      });
+    }
+  }
+
+  for (const pointerType of ["mouse", "touch"]) {
+    test(`circle resize mode blocks ${pointerType} cuts until disabled`, async ({ page }) => {
+      await reset(page);
+      await selectTool(page, "Circle tool");
+      await toolButton(page, "Resize circle").click();
+      const canvas = page.locator("#foldedCanvas");
+      await canvas.evaluate((canvas) => {
+        canvas.setPointerCapture = () => {};
+        canvas.releasePointerCapture = () => {};
+      });
+      const paper = canvas.locator('[data-role="paper-shape"]');
+      const initialPath = await paper.getAttribute("d");
+      const point = { x: 230, y: 220 };
+      const tap = async () => {
+        if (pointerType === "mouse") {
+          await clickFoldedPoint(page, point);
+        } else {
+          await touchFoldedPoint(page, "pointerdown", 1, point);
+          await touchFoldedPoint(page, "pointerup", 1, point);
+        }
+      };
+
+      await tap();
+      await expect(paper).toHaveAttribute("d", initialPath);
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+      await toolButton(page, "Resize circle").click();
+      await tap();
+      await expect(page.locator("#status")).toContainText("Circle cut applied");
+      await expect(paper).not.toHaveAttribute("d", initialPath);
+      await expect(page.locator("#undoBtn")).toBeEnabled();
+    });
+  }
 });

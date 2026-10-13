@@ -1347,7 +1347,11 @@ export function createStudioEngine(config) {
       evt.preventDefault();
       const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
       updateCirclePreview(pt);
-      applyCircleCutAtCursor(pt);
+      if (state.circleResizeMode) {
+        render();
+      } else {
+        applyCircleCutAtCursor(pt);
+      }
       return;
     }
 
@@ -1473,7 +1477,7 @@ export function createStudioEngine(config) {
           state.touchDrawMoved = true;
         }
 
-        if (!state.touchDrawMoved) {
+        if (state.touchDrawStartPoint && !state.touchDrawMoved && !state.circleResizeMode) {
           updateCirclePreview(pt, false);
           applyCircleCutAtCursor(pt);
         } else {
