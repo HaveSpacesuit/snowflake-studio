@@ -27,7 +27,6 @@ export const SNAP_INTERIOR_MIN_LEAD = 2.4;
 export const CUT_WIDTH = 3;
 export const GEOM_GRID = 0.01;
 export const CLEAN_EPS = 1e-4;
-export const OUTLINE_GRID = 0.5;
 export const MAX_RANDOM_CUT_REMOVAL_FRACTION = 0.25;
 
 // ---------------------------------------------------------------------------

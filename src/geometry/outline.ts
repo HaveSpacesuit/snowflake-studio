@@ -3,7 +3,7 @@
 // boundaries so each can be stroked with its own colour and width.
 
 import polygonClipping from "polygon-clipping";
-import { OUTLINE_GRID } from "../constants.ts";
+import { GEOM_GRID } from "../constants.ts";
 import { normalizeGeom, pointsToPath } from "./polygon.ts";
 
 export function buildUnfoldedOutlinePaths(geom) {
@@ -11,14 +11,14 @@ export function buildUnfoldedOutlinePaths(geom) {
 
   let outlineGeom = geom;
   try {
-    // Snap to a coarse grid and re-union so adjacent mirrored wedges merge into
-    // clean silhouettes instead of leaving hairline seams.
+    // Keep the geometry's fine precision when re-unioning so narrow gaps
+    // between separate cuts are not snapped shut.
     const snapped = normalizeGeom(
       geom.map((polygon) =>
         polygon.map((ring) =>
           ring.map((pt) => [
-            Math.round(pt[0] / OUTLINE_GRID) * OUTLINE_GRID,
-            Math.round(pt[1] / OUTLINE_GRID) * OUTLINE_GRID
+            Math.round(pt[0] / GEOM_GRID) * GEOM_GRID,
+            Math.round(pt[1] / GEOM_GRID) * GEOM_GRID
           ])
         )
       )
