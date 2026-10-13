@@ -1242,6 +1242,37 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator("#randomCutBtn")).not.toBeFocused();
   });
 
+  test("touch cancellation clears the long-press Straight arm", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await reset(page);
+
+    const canvas = page.locator("#foldedCanvas");
+    await canvas.evaluate((canvas) => {
+      canvas.setPointerCapture = () => {};
+      canvas.releasePointerCapture = () => {};
+    });
+    const paper = canvas.locator('[data-role="paper-shape"]');
+    const liveCut = canvas.locator('[data-role="live-cut"]');
+    const initialPath = await paper.getAttribute("d");
+    const point = { x: 230, y: 220 };
+
+    await touchFoldedPoint(page, "pointerdown", 1, point);
+    await expect(page.locator("#status")).toHaveText("Straight-line mode armed: drag to cut.");
+    await touchFoldedPoint(page, "pointercancel", 1, point);
+    await expect(page.locator("#status")).toHaveText("Cut cancelled.");
+    await expect(paper).toHaveAttribute("d", initialPath);
+    await expect(liveCut).toHaveAttribute("d", "");
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+
+    await touchFoldedPoint(page, "pointerdown", 2, point);
+    await touchFoldedPoint(page, "pointerup", 2, point);
+    await expect(page.locator("#status")).toHaveText("Ready");
+    await expect(toolButton(page, "Freehand tool")).toHaveAttribute("aria-pressed", "true");
+    await expect(paper).toHaveAttribute("d", initialPath);
+    await expect(liveCut).toHaveAttribute("d", "");
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+  });
+
   test("touch pinch resizes the circle preview when resize mode is enabled", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");

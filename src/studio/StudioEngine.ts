@@ -1530,6 +1530,7 @@ export function createStudioEngine(config) {
 
   function onFoldedPointerCancel(evt) {
     clearTouchLongPressArm();
+    state.touchStraightArmed = false;
     if (evt.pointerType === "touch") {
       const tState = getTouchState(foldedSvg);
       tState.pointers.delete(evt.pointerId);
