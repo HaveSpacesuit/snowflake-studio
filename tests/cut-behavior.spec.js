@@ -1004,6 +1004,56 @@ test.describe("snowflake cut validity", () => {
     await expect(page.locator("#status")).toHaveText("Redid last cut.");
   });
 
+  test("history shortcuts do not intercept focused editable controls", async ({ page }) => {
+    await reset(page);
+
+    const firstCut = await drawPath(page, [
+      { x: 238, y: 100 },
+      { x: 360, y: 255 }
+    ]);
+    expect(statusIsAccepted(firstCut)).toBe(true);
+
+    await page.locator("#optionsBtn").click();
+    const dialog = page.locator("dialog[open]");
+    const range = dialog.locator("#optionsExteriorWidthInput");
+    const originalValue = await range.inputValue();
+    const originalStatus = await page.locator("#status").innerText();
+
+    for (const shortcut of [
+      "Control+z",
+      "Control+y",
+      "Control+Shift+z",
+      "Meta+z",
+      "Meta+y",
+      "Meta+Shift+z"
+    ]) {
+      await range.focus();
+      await page.keyboard.press(shortcut);
+      await expect(range).toBeFocused();
+      await expect(range).toHaveValue(originalValue);
+      await expect(dialog).toBeVisible();
+      await expect(page.locator("#undoBtn")).toBeEnabled();
+      await expect(page.locator("#redoBtn")).toBeDisabled();
+      await expect(page.locator("#status")).toHaveText(originalStatus);
+    }
+
+    await dialog.evaluate((element) => {
+      const editable = document.createElement("div");
+      editable.contentEditable = "true";
+      editable.tabIndex = 0;
+      editable.textContent = "editable";
+      element.append(editable);
+    });
+    const editable = dialog.locator('[contenteditable="true"]');
+    await editable.evaluate((element) => { element.focus(); });
+    await page.keyboard.press("Control+z");
+    await expect(editable).toBeFocused();
+    await expect(dialog).toBeVisible();
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+    await expect(page.locator("#redoBtn")).toBeDisabled();
+    await expect(page.locator("#status")).toHaveText(originalStatus);
+  });
+
   test("Command shortcuts undo and redo cuts", async ({ page }) => {
     await reset(page);
 
