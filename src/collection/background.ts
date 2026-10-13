@@ -56,6 +56,8 @@ export function createCollectionBackground(canvas) {
 
   function disposeTemplates() {
     for (const template of state.templates) {
+      // Cancel pending image loads before revoking their blob URLs.
+      template.img.removeAttribute("src");
       if (template.url) {
         try {
           URL.revokeObjectURL(template.url);
