@@ -14,6 +14,21 @@ test("help dialog includes the bug report link", async ({ page }) => {
   await expect(page.locator(".helpModal a")).toHaveCSS("color", "rgb(205, 232, 255)");
 });
 
+test("outline paths preserve separate cut contours across narrow gaps", async ({ page }) => {
+  await page.goto(appUrl);
+
+  const outerPath = await page.evaluate(async () => {
+    const { buildUnfoldedOutlinePaths } = await import("/src/geometry/outline.ts");
+    const geometry = [
+      [[[0, 0], [1, 0], [1, 1], [0, 1]]],
+      [[[1.1, 0], [2.1, 0], [2.1, 1], [1.1, 1]]]
+    ];
+    return buildUnfoldedOutlinePaths(geometry).outerPath;
+  });
+
+  expect((outerPath.match(/M /g) || []).length).toBe(2);
+});
+
 test("print instructions button invokes browser print", async ({ page }) => {
   await page.goto(appUrl);
   await page.evaluate(() => {
