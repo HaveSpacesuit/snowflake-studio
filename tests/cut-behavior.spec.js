@@ -284,6 +284,42 @@ test("collection thumbnails use preview svg storage with legacy svg fallback", a
   expect(savedItem.svg).toBeUndefined();
 });
 
+test("collection print instructions include the saved snowflake preview", async ({ page }) => {
+  const previewSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path class="printPreviewOutline" d="M50 5 95 50 50 95 5 50Z"/></svg>`;
+  await page.goto("/collection.html");
+  await page.evaluate(({ previewSvg }) => {
+    window.localStorage.setItem(
+      "snowflakeStudio.collection.v1",
+      JSON.stringify([{
+        id: "print-preview",
+        previewSvg,
+        paperGeom: [[[[0, 0], [600, 0], [600, 600], [0, 600]]]],
+        options: { sideCount: 6 }
+      }])
+    );
+  }, { previewSvg });
+  await page.reload();
+  await page.evaluate(() => {
+    window.__printPreviewWasReady = false;
+    window.print = () => {
+      window.__printPreviewWasReady = Boolean(document.querySelector(".printPreviewSvg svg"));
+    };
+  });
+
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Print instructions" }).click();
+  await expect.poll(() => page.evaluate(() => window.__printPreviewWasReady)).toBe(true);
+  await page.emulateMedia({ media: "print" });
+
+  const preview = page.locator(".printPreviewSvg svg");
+  await expect(preview).toHaveCount(1);
+  const previewBox = await preview.boundingBox();
+  if (!previewBox) throw new Error("Collection print preview was not rendered");
+  expect(previewBox.width).toBeGreaterThan(0);
+  expect(previewBox.height).toBeGreaterThan(0);
+  await expect(preview.locator(".printPreviewOutline")).toBeVisible();
+});
+
 function statusIsAccepted(statusText) {
   return /^Accepted \(/.test(statusText) || /^Cut accepted \(/.test(statusText);
 }

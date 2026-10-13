@@ -20,6 +20,12 @@ import {
   saveSnowflakeToCollection
 } from "./snowflake/storage.ts";
 
+function waitForPrintLayout() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
 /** The Collection page: browse, edit, share, import, and delete saved snowflakes. */
 export default function CollectionApp() {
   const backgroundCanvasRef = useRef(null);
@@ -129,7 +135,7 @@ export default function CollectionApp() {
     };
   };
 
-  const handlePrintItem = (item) => {
+  const handlePrintItem = async (item) => {
     const target = buildPrintTarget(item);
     if (!target) {
       setStatus("Could not print: this snowflake's geometry is unavailable.");
@@ -138,6 +144,7 @@ export default function CollectionApp() {
     // Force the print sheet to reflect this item before invoking print, since
     // window.print() reads the DOM synchronously.
     flushSync(() => setPrintTarget(target));
+    await waitForPrintLayout();
     window.print();
   };
 
