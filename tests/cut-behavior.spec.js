@@ -3,6 +3,28 @@ import { readFile } from "node:fs/promises";
 
 const appUrl = "/index.html";
 
+test("a new random cut after undo clears the redo branch", async ({ page }) => {
+  await page.goto(appUrl);
+
+  const undoButton = page.locator("#undoBtn");
+  const redoButton = page.locator("#redoBtn");
+  const randomCutButton = page.locator("#randomCutBtn");
+  const status = page.locator("#status");
+
+  await randomCutButton.click();
+  await expect(status).toContainText("Accepted");
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+
+  await undoButton.click();
+  await expect(redoButton).toBeEnabled();
+
+  await randomCutButton.click();
+  await expect(status).toContainText("Accepted");
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+});
+
 test("help dialog includes the bug report link", async ({ page }) => {
   await page.goto(appUrl);
   await page.locator("#helpBtn").click();
