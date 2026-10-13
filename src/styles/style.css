@@ -255,6 +255,9 @@ button:disabled {
   position: fixed;
   z-index: 40;
   min-width: 190px;
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   background: #1d2a3f;
