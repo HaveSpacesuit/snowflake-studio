@@ -641,6 +641,9 @@ button:disabled {
 
 .helpModal {
   width: min(760px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px);
+  overflow: auto;
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 16px;
   padding: 0;
@@ -655,6 +658,7 @@ button:disabled {
 }
 
 .helpModalContent {
+  min-width: 0;
   margin: 0;
   padding: 20px;
 }
@@ -667,8 +671,10 @@ button:disabled {
 }
 
 .helpModalHeader h2 {
+  min-width: 0;
   margin: 0;
   font-size: 1.15rem;
+  overflow-wrap: anywhere;
 }
 
 .helpCloseButton {
@@ -683,7 +689,7 @@ button:disabled {
 
 .helpGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
 }
 
@@ -916,7 +922,16 @@ button:disabled {
   }
 
   .helpGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .verticalToolRailTooltip {
+    max-width: calc(100vw - 80px);
+  }
+
+  .verticalToolRailTooltipLabel,
+  .verticalToolRailTooltipHint {
+    white-space: normal;
   }
 
   .optionsGrid {

@@ -131,3 +131,33 @@ test("dialog focus stays contained with one or no tabbable controls", async ({ p
   await page.keyboard.press("Escape");
   await expect(page.locator("#helpBtn")).toBeFocused();
 });
+
+test("Studio and help dialog fit a narrow zoom-equivalent viewport", async ({ page }) => {
+  for (const width of [240, 200]) {
+    await page.setViewportSize({ width, height: 180 });
+    await page.goto("/index.html");
+
+    await expect.poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true);
+
+    await page.locator("#helpBtn").click();
+    const dialog = page.locator('dialog[open][aria-labelledby="helpModalTitle"]');
+    await expect(dialog).toBeVisible();
+
+    const dimensions = await dialog.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+    expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
+
+    await dialog.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect.poll(() => dialog.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    await expect.poll(() =>
+      page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    ).toBe(true);
+  }
+});
