@@ -546,6 +546,69 @@ async function unfoldedRenderedScale(page) {
   return Number(m[1]);
 }
 
+for (const edge of ["vertical", "angled"]) {
+  test(`independent edge arcs on the ${edge} fold do not add lines to the preview or print outlines`, async ({ page }) => {
+    await reset(page);
+
+    for (const [index, center] of [330, 250].entries()) {
+      const status = await drawPath(page, [
+        { x: 155, y: center - 22 },
+        { x: 164, y: center - 22 },
+        { x: 172, y: center - 18 },
+        { x: 184, y: center - 10 },
+        { x: 188, y: center },
+        { x: 184, y: center + 10 },
+        { x: 172, y: center + 18 },
+        { x: 164, y: center + 22 },
+        { x: 155, y: center + 22 }
+      ].map((point) => {
+        if (edge === "vertical") return point;
+        const along = 430 - point.y;
+        const offset = point.x - 172;
+        return {
+          x: 172 + along * Math.sin(Math.PI / 6) - offset * Math.cos(Math.PI / 6),
+          y: 430 - along * Math.cos(Math.PI / 6) - offset * Math.sin(Math.PI / 6)
+        };
+      }));
+      expect(statusIsAccepted(status)).toBe(true);
+
+      const paths = await page.evaluate(async () => {
+        const { pointToSegmentDistance } = await import("/src/geometry/polygon.ts");
+        const outer = document.querySelector('#unfoldedCanvas [data-role="snowflake-outline-outer"]').getAttribute("d");
+        const holes = document.querySelector('#unfoldedCanvas [data-role="snowflake-outline-holes"]').getAttribute("d");
+        const parseContours = (path) => path.split("M ").filter(Boolean).map((contour) => {
+          const numbers = contour.match(/-?\d+(?:\.\d+)?/g).map(Number);
+          const points = [];
+          for (let i = 0; i < numbers.length; i += 2) points.push([numbers[i], numbers[i + 1]]);
+          return points;
+        });
+        return {
+          outer,
+          holes,
+          contours: parseContours(holes),
+          minOuterRadius: Math.min(...parseContours(outer).flatMap((ring) =>
+            ring.map((point, i) => pointToSegmentDistance({ x: 172, y: 430 }, point, ring[(i + 1) % ring.length]))
+          )),
+          printPaths: [...document.querySelectorAll(".printPreviewSvg .printPreviewOutline")]
+            .map((path) => path.getAttribute("d"))
+        };
+      });
+
+      expect((paths.outer.match(/M /g) || []).length).toBe(1);
+      expect(paths.minOuterRadius).toBeGreaterThan(304.98);
+      expect(paths.contours.length).toBe((index + 1) * 6);
+      for (const contour of paths.contours) {
+        for (let i = 0; i < contour.length; i += 1) {
+          const point = contour[i];
+          const next = contour[(i + 1) % contour.length];
+          expect(Math.hypot(next[0] - point[0], next[1] - point[1])).toBeLessThan(45);
+        }
+      }
+      expect(paths.printPaths).toEqual([paths.outer, paths.holes]);
+    }
+  });
+}
+
 test.describe("snowflake cut validity", () => {
   test("outside edge A to outside edge B is valid", async ({ page }) => {
     await reset(page);

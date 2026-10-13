@@ -100,6 +100,10 @@ result.
 - [ ] Draw with both endpoints just outside the paper.
 - [ ] Draw with an endpoint close enough to test edge snapping.
 - [ ] Draw a stroke that exits and re-enters through the same edge.
+- [ ] Make one arc cut that returns through a fold edge, then a second separate
+  arc cut along that edge. Verify Preview and printed outlines contain only the
+  cut holes, with no straight lines to the outer perimeter or between holes.
+  Repeat on both fold edges and with side counts from 4 through 10.
 - [ ] Draw a multi-segment zigzag crossing the paper.
 - [ ] Draw a cut near each edge and at each corner of the folded wedge.
 - [ ] Draw a stroke in the opposite direction and verify equivalent geometry.
