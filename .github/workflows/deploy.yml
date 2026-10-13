@@ -42,11 +42,6 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Add collection directory route
-        run: |
-          mkdir -p dist/collection
-          cp dist/collection.html dist/collection/index.html
-
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

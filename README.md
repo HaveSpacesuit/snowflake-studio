@@ -119,10 +119,9 @@ on manual workflow dispatch. The workflow:
 
 1. Installs Node 22 and pnpm.
 2. Runs `pnpm install --frozen-lockfile`.
-3. Runs `pnpm run typecheck` and `pnpm run build`.
-4. Copies `dist/collection.html` to `dist/collection/index.html` so
-   `/collection/` is a friendly route.
-5. Publishes `dist/` with the GitHub Pages deployment action.
+3. Runs `pnpm run typecheck` and `pnpm run build`, which emits both
+   `dist/collection.html` and the `/collection/` friendly route.
+4. Publishes `dist/` with the GitHub Pages deployment action.
 
 In repository settings, select **Pages > Build and deployment > Source >
 GitHub Actions**. A manual deployment can then be started from the
