@@ -30,6 +30,10 @@ export async function saveInstructionsPdf(printSheet: HTMLElement, paperSize: Pr
       const clonedSheet = clonedDocument.querySelector<HTMLElement>("[data-print-sheet]");
       if (!clonedSheet) throw new Error("Print sheet was not found in the cloned document.");
       clonedSheet.classList.add("printSheet--capture");
+      // Computed transforms copied from the hidden sheet can override SVG rotation attributes.
+      clonedSheet.querySelectorAll<SVGElement>(".printPreviewSvg svg [transform]").forEach((element) => {
+        element.style.removeProperty("transform");
+      });
     }
   });
 
