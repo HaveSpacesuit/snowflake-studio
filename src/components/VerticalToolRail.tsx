@@ -65,6 +65,9 @@ export default function VerticalToolRail({ tools, ariaLabel = "Tools", className
     if (tool.disabled) return;
     clearLongPressTimer();
     clearHideTooltipTimer();
+    if (touchTooltipToolId !== tool.id) {
+      setTouchTooltipToolId(null);
+    }
     longPressTimerRef.current = setTimeout(() => {
       longPressTimerRef.current = null;
       openTouchTooltip(tool.id);
