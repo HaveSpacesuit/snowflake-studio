@@ -114,6 +114,91 @@ test("save instructions follows six-sided print eligibility", async ({ page }) =
   await expect(page.locator("#saveInstructionsBtn")).toBeDisabled();
 });
 
+for (const paperSize of ["letter", "a4"]) {
+  test(`saved ${paperSize} instructions preserve the browser print preview orientation`, async ({ page }) => {
+    await page.goto(appUrl);
+    if (paperSize === "a4") {
+      await page.locator("#optionsBtn").click();
+      await page.locator("#printPaperSize").selectOption("a4");
+      await page.locator("#optionsSaveBtn").click();
+    }
+    await expect(page.locator(`.printSheet--${paperSize}`)).toHaveCount(1);
+    await page.emulateMedia({ media: "print" });
+
+    const preview = await page.locator(".printPreviewSvg svg").evaluate((svg) => {
+      const sheetBox = svg.closest("[data-print-sheet]").getBoundingClientRect();
+      const box = svg.getBoundingClientRect();
+      const group = svg.querySelector("g");
+      const matrix = group.transform.baseVal.consolidate().matrix;
+      const coordinates = svg.querySelector(".printPreviewBody").getAttribute("d")
+        .match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi).map(Number);
+      const points = [];
+      for (let i = 0; i < coordinates.length; i += 2) {
+        points.push(new DOMPoint(coordinates[i], coordinates[i + 1]).matrixTransform(matrix));
+      }
+      const minY = Math.min(...points.map((point) => point.y));
+      const top = points.filter((point) => Math.abs(point.y - minY) < 0.01);
+      return {
+        x: box.x - sheetBox.x,
+        y: box.y - sheetBox.y,
+        width: box.width,
+        height: box.height,
+        sheetWidth: sheetBox.width,
+        flatTop: top.length >= 2,
+        markup: svg.outerHTML
+      };
+    });
+    await page.emulateMedia({ media: "screen" });
+    // Inspect the actual raster passed to the PDF writer, not just the source SVG.
+    await page.evaluate((preview) => {
+      const original = HTMLCanvasElement.prototype.toDataURL;
+      HTMLCanvasElement.prototype.toDataURL = function (...args) {
+        if (this.width > preview.sheetWidth && this.height > this.width) {
+          const scale = this.width / preview.sheetWidth;
+          const width = Math.round(preview.width * scale);
+          const height = Math.round(preview.height * scale);
+          const pixels = this.getContext("2d").getImageData(
+            Math.round(preview.x * scale), Math.round(preview.y * scale), width, height
+          ).data;
+          const rows = [];
+          for (let y = 0; y < height; y += 1) {
+            const dark = [];
+            for (let x = 0; x < width; x += 1) {
+              const offset = (y * width + x) * 4;
+              if (pixels[offset] < 128 && pixels[offset + 1] < 128 && pixels[offset + 2] < 128) {
+                dark.push(x);
+              }
+            }
+            if (dark.length) rows.push({ y, minX: dark[0], maxX: dark[dark.length - 1] });
+          }
+          const minX = Math.min(...rows.map((row) => row.minX));
+          const maxX = Math.max(...rows.map((row) => row.maxX));
+          const topRows = rows.filter((row) => row.y < rows[0].y + height * 0.03);
+          window.__pdfPreviewTopWidthRatio = Math.max(
+            ...topRows.map((row) => row.maxX - row.minX)
+          ) / (maxX - minX);
+        }
+        return original.apply(this, args);
+      };
+    }, preview);
+
+    const downloadPromise = page.waitForEvent("download");
+    const filename = await page.evaluate(async (paperSize) => {
+      const { saveInstructionsPdf } = await import("/src/print/saveInstructionsPdf.ts");
+      return saveInstructionsPdf(document.querySelector("[data-print-sheet]"), paperSize);
+    }, paperSize);
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe(filename);
+    const topWidthRatio = await page.evaluate(() => window.__pdfPreviewTopWidthRatio);
+    if (preview.flatTop) {
+      expect(topWidthRatio).toBeGreaterThan(0.4);
+    } else {
+      expect(topWidthRatio).toBeLessThan(0.15);
+    }
+    await expect(page.locator(".printPreviewSvg svg")).toHaveJSProperty("outerHTML", preview.markup);
+  });
+}
+
 test("stages print paper size changes until options are saved", async ({ page }) => {
   await page.goto(appUrl);
   await expect(page.locator(".printSheet--letter")).toHaveCount(1);
