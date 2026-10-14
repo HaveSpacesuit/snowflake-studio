@@ -121,7 +121,7 @@ export default function App() {
           />
         </section>
 
-        <p id="status" className="statusBar">{status}</p>
+        <p id="status" className="statusBar" role="status">{status}</p>
       </main>
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
