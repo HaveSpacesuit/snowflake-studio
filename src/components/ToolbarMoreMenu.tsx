@@ -46,7 +46,7 @@ const ToolbarMoreMenu = forwardRef<HTMLButtonElement, any>(function ToolbarMoreM
 
   useLayoutEffect(() => {
     if (open) updatePosition();
-  }, [open, menuPosition]);
+  }, [open, menuPosition, items]);
 
   useEffect(() => {
     if (!open) return;
