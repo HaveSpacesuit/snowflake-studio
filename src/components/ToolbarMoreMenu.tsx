@@ -57,7 +57,10 @@ const ToolbarMoreMenu = forwardRef<HTMLButtonElement, any>(function ToolbarMoreM
     };
 
     const handleKeyDown = (event) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape" || document.querySelector("dialog[open]")) return;
+      event.preventDefault();
+      setOpen(false);
+      buttonRef.current?.focus();
     };
 
     window.addEventListener("resize", updatePosition);
@@ -74,6 +77,7 @@ const ToolbarMoreMenu = forwardRef<HTMLButtonElement, any>(function ToolbarMoreM
 
   const runAndClose = (action) => {
     setOpen(false);
+    buttonRef.current?.focus();
     action?.();
   };
 

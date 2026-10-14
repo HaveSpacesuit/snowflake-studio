@@ -34,11 +34,29 @@ for (const width of [320, 390, 768, 1200]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toHaveCount(0);
     await expect(moreButton).toHaveAttribute("aria-expanded", "false");
+    await expect(moreButton).toBeFocused();
 
     await moreButton.click();
     await expectMenuWithinViewport(page);
+    await page.getByRole("menuitem", { name: "Print instructions", exact: true }).focus();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("menu")).toHaveCount(0);
+    await expect(moreButton).toBeFocused();
   });
 }
+
+test("Escape cancels a compact tile's Delete confirmation and restores More focus", async ({ page }) => {
+  await page.setViewportSize({ width: 200, height: 568 });
+  await page.goto("/collection.html");
+  const moreButton = page.getByRole("button", { name: "More", exact: true });
+  await moreButton.click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await expect(page.locator("dialog[open]")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(page.locator(".collectionTile")).toHaveCount(1);
+  await expect(moreButton).toBeFocused();
+});
 
 test("open Collection More menu stays on screen after resizing", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 568 });
