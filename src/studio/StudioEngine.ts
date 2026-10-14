@@ -271,7 +271,7 @@ export function createStudioEngine(config) {
     state.panTarget = { svg, view };
     state.panPointerId = pointerId;
     state.panLastPoint = startPoint;
-    svg.setPointerCapture(pointerId);
+    capturePointer(svg, pointerId);
     return true;
   }
 
@@ -1240,10 +1240,33 @@ export function createStudioEngine(config) {
     return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
   }
 
+  function capturePointer(svg, pointerId) {
+    try {
+      svg.setPointerCapture(pointerId);
+    } catch (error) {
+      // A touch may no longer be active when its queued event is handled.
+      if (error.name !== "NotFoundError") throw error;
+    }
+  }
+
   function startTouchPinch(svg, view, tState) {
     clearTouchLongPressArm();
     const pointers = Array.from(tState.pointers.values());
     if (pointers.length < 2) return;
+
+    if (svg === foldedSvg) {
+      state.touchStraightArmed = false;
+      state.touchDrawStartPoint = null;
+      state.touchDrawMoved = false;
+      state.touchDrawStartTime = 0;
+      if (state.drawing) {
+        state.drawing = false;
+        state.currentCut = [];
+        state.livePreview = { mode: "none", text: "Ready" };
+        setStatus("Ready");
+        render();
+      }
+    }
 
     const distNow = touchDistance(pointers[0], pointers[1]);
     if (distNow < 4) return;
@@ -1256,12 +1279,6 @@ export function createStudioEngine(config) {
     tState.startScale = view.scale;
     tState.startOffsetX = view.offsetX;
     tState.startOffsetY = view.offsetY;
-
-    if (svg === foldedSvg && state.drawing) {
-      state.drawing = false;
-      state.currentCut = [];
-      state.livePreview = { mode: "none", text: "Ready" };
-    }
   }
 
   function updateTouchPinch(svg, view, tState) {
@@ -1335,7 +1352,7 @@ export function createStudioEngine(config) {
     if (evt.pointerType === "touch") {
       evt.preventDefault();
       const tState = getTouchState(foldedSvg);
-      foldedSvg.setPointerCapture(evt.pointerId);
+      capturePointer(foldedSvg, evt.pointerId);
       tState.pointers.set(evt.pointerId, getSvgPoint(evt, foldedSvg));
       if (tState.pointers.size >= 2) {
         startTouchPinch(foldedSvg, state.foldedView, tState);
@@ -1403,7 +1420,7 @@ export function createStudioEngine(config) {
     if (evt.pointerType === "touch") scheduleTouchLongPressArm();
     state.livePreview = { mode: "none", text: "Drawing..." };
     setStatus(state.livePreview.text);
-    foldedSvg.setPointerCapture(evt.pointerId);
+    if (evt.pointerType !== "touch") capturePointer(foldedSvg, evt.pointerId);
     render();
   }
 
@@ -1430,7 +1447,8 @@ export function createStudioEngine(config) {
         if (!tState.pinchActive && tState.pointers.size >= 2) {
           startTouchPinch(foldedSvg, state.foldedView, tState);
         }
-        if (updateTouchPinch(foldedSvg, state.foldedView, tState)) return;
+        updateTouchPinch(foldedSvg, state.foldedView, tState);
+        return;
       }
 
       if (!state.drawing && state.activeTool === TOOL_CIRCLE) {
@@ -1535,7 +1553,7 @@ export function createStudioEngine(config) {
       addPointToCurrentCut(pt);
     }
     state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
-    foldedSvg.releasePointerCapture(evt.pointerId);
+    if (foldedSvg.hasPointerCapture(evt.pointerId)) foldedSvg.releasePointerCapture(evt.pointerId);
     finalizeCut(releaseStartedReady);
     if (consumeStraightArm) state.touchStraightArmed = false;
     state.touchDrawStartPoint = null;
@@ -1572,7 +1590,7 @@ export function createStudioEngine(config) {
     if (evt.pointerType === "touch") {
       evt.preventDefault();
       const tState = getTouchState(unfoldedSvg);
-      unfoldedSvg.setPointerCapture(evt.pointerId);
+      capturePointer(unfoldedSvg, evt.pointerId);
       tState.pointers.set(evt.pointerId, getSvgPoint(evt, unfoldedSvg));
       if (tState.pointers.size >= 2) {
         startTouchPinch(unfoldedSvg, state.unfoldedView, tState);
