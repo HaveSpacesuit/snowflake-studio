@@ -72,7 +72,7 @@ for (const { name, launcher, controls, closeButtons, prepare } of dialogs) {
     const launchingControl = page.locator(launcher);
     const dialog = page.locator("dialog[open]");
 
-    for (const closeMethod of ["Escape", "backdrop", ...closeButtons]) {
+    for (const closeMethod of ["Escape", "Escape event", "cancel event", "backdrop", ...closeButtons]) {
       if (prepare) await prepare(page);
       await launchingControl.click();
       await expect(dialog).toBeVisible();
@@ -80,6 +80,10 @@ for (const { name, launcher, controls, closeButtons, prepare } of dialogs) {
 
       if (closeMethod === "Escape") {
         await page.keyboard.press("Escape");
+      } else if (closeMethod === "Escape event") {
+        await dialog.dispatchEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+      } else if (closeMethod === "cancel event") {
+        await dialog.dispatchEvent("cancel", { cancelable: true });
       } else if (closeMethod === "backdrop") {
         await page.mouse.click(5, 5);
       } else {
@@ -90,6 +94,50 @@ for (const { name, launcher, controls, closeButtons, prepare } of dialogs) {
     }
   });
 }
+
+test("Escape discards live and staged Options changes", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.locator("#randomCutBtn").click();
+  const launcher = page.locator("#optionsBtn");
+  await launcher.click();
+  const mode = page.locator("#optionsPreviewModeInput");
+  const initialMode = await mode.inputValue();
+  const sideCount = page.locator("#optionsSideCountInput");
+  const initialSideCount = await sideCount.inputValue();
+  const paperSize = page.locator("#printPaperSize");
+  const initialPaperSize = await paperSize.inputValue();
+
+  await mode.fill(initialMode === "2" ? "0" : "2");
+  await sideCount.fill(initialSideCount === "7" ? "6" : "7");
+  await paperSize.selectOption(initialPaperSize === "letter" ? "a4" : "letter");
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(launcher).toBeFocused();
+  await expect(page.locator("#undoBtn")).toBeEnabled();
+
+  await launcher.click();
+  await expect(mode).toHaveValue(initialMode);
+  await expect(sideCount).toHaveValue(initialSideCount);
+  await expect(paperSize).toHaveValue(initialPaperSize);
+});
+
+test("Escape cancels New after a previous confirmation", async ({ page }) => {
+  await page.goto("/index.html");
+  await page.locator("#randomCutBtn").click();
+  const launcher = page.locator("#resetBtn");
+  await launcher.click();
+  await page.locator("#collectionConfirmOk").click();
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(page.locator("#undoBtn")).toBeDisabled();
+
+  await page.locator("#randomCutBtn").click();
+  await expect(page.locator("#undoBtn")).toBeEnabled();
+  await launcher.click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("dialog[open]")).toHaveCount(0);
+  await expect(launcher).toBeFocused();
+  await expect(page.locator("#undoBtn")).toBeEnabled();
+});
 
 test("Options focus cycle updates when controls become enabled or disabled", async ({ page }) => {
   await page.goto("/index.html");

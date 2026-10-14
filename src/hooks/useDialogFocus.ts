@@ -15,7 +15,17 @@ export function useDialogFocus(open: boolean) {
       }
     };
 
+    const cancel = (event: Event) => {
+      event.preventDefault();
+      dialog.close("cancel");
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && dialog.open) {
+        cancel(event);
+        event.stopPropagation();
+        return;
+      }
       if (event.key !== "Tab" || !dialog.open) return;
       const controls = Array.from(
         dialog.querySelectorAll<HTMLElement>(
@@ -43,9 +53,11 @@ export function useDialogFocus(open: boolean) {
     };
 
     dialog.addEventListener("keydown", handleKeyDown);
+    dialog.addEventListener("cancel", cancel);
     dialog.addEventListener("close", restoreFocus);
     return () => {
       dialog.removeEventListener("keydown", handleKeyDown);
+      dialog.removeEventListener("cancel", cancel);
       dialog.removeEventListener("close", restoreFocus);
       if (dialog.contains(document.activeElement)) restoreFocus();
     };
