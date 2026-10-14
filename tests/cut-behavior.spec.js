@@ -1403,6 +1403,59 @@ test.describe("snowflake cut validity", () => {
     });
   }
 
+  for (const gesture of ["drawing", "pinch-only", "long-press", "close fingers"]) {
+    test(`Freehand ${gesture} transitions to pinch without a draft or history`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await reset(page);
+      const errors = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+
+      const canvas = page.locator("#foldedCanvas");
+      const paper = canvas.locator('[data-role="paper-shape"]');
+      const liveCut = canvas.locator('[data-role="live-cut"]');
+      const initialPath = await paper.getAttribute("d");
+      const initialArea = await whitePixelCount(page);
+      const first = { x: 238, y: 100 };
+      const second = gesture === "close fingers" ? { x: 239, y: 100 } : { x: 270, y: 220 };
+
+      await touchFoldedPoint(page, "pointerdown", 1, first);
+      if (gesture === "drawing") {
+        await touchFoldedPoint(page, "pointermove", 1, { x: 260, y: 160 });
+        await expect(liveCut).not.toHaveAttribute("d", "");
+      } else if (gesture === "long-press") {
+        await expect(page.locator("#status")).toHaveText("Straight-line mode armed: drag to cut.");
+      }
+      await touchFoldedPoint(page, "pointerdown", 2, second);
+      await expect(page.locator("#status")).toHaveText("Ready");
+      await expect(liveCut).toHaveAttribute("d", "");
+      await expect(liveCut).toBeHidden();
+
+      await touchFoldedPoint(page, "pointermove", 2, { x: 290, y: 240 });
+      if (gesture === "close fingers") {
+        await touchFoldedPoint(page, "pointermove", 2, { x: 340, y: 300 });
+      }
+      expect(await zoomScale(page, "#foldedCanvas")).toBeGreaterThan(1);
+      await touchFoldedPoint(page, "pointerup", 2, second);
+      await touchFoldedPoint(page, "pointermove", 1, { x: 280, y: 200 });
+      await touchFoldedPoint(page, "pointerup", 1, first);
+
+      await expect(page.locator("#status")).toHaveText("Ready");
+      await expect(liveCut).toHaveAttribute("d", "");
+      await expect(liveCut).toBeHidden();
+      await expect(paper).toHaveAttribute("d", initialPath);
+      expect(await whitePixelCount(page)).toBe(initialArea);
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+      await expect(page.locator("#redoBtn")).toBeDisabled();
+
+      await touchFoldedPoint(page, "pointerdown", 3, first);
+      await expect(page.locator("#status")).toHaveText("Drawing...");
+      await touchFoldedPoint(page, "pointerup", 3, first);
+      await expect(page.locator("#status")).toHaveText("Ready");
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+      expect(errors).toEqual([]);
+    });
+  }
+
   test("touch pinch resizes the circle preview when resize mode is enabled", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");
