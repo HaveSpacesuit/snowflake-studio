@@ -221,6 +221,47 @@ test("browser print layout gives the snowflake preview an explicit rendered size
   expect(outlineBounds.height).toBeGreaterThan(0);
 });
 
+test("interior outline color stays current in both previews while Options remains open", async ({ page }) => {
+  await page.goto(appUrl);
+  const status = await drawPath(page, [
+    { x: 155, y: 308 },
+    { x: 164, y: 308 },
+    { x: 172, y: 312 },
+    { x: 184, y: 320 },
+    { x: 188, y: 330 },
+    { x: 184, y: 340 },
+    { x: 172, y: 348 },
+    { x: 164, y: 352 },
+    { x: 155, y: 352 }
+  ]);
+  expect(statusIsAccepted(status)).toBe(true);
+  await page.locator("#optionsBtn").click();
+  await page.locator("#optionsPreviewModeInput").fill("1");
+
+  const liveInterior = page.locator('#unfoldedCanvas [data-role="snowflake-outline-holes"]');
+  const liveExterior = page.locator('#unfoldedCanvas [data-role="snowflake-outline-outer"]');
+  const printInterior = page.locator(".printPreviewSvg .printPreviewOutline").nth(1);
+  const printExterior = page.locator(".printPreviewSvg .printPreviewOutline").first();
+  await expect(liveInterior).not.toHaveAttribute("d", "");
+  await expect(printInterior).not.toHaveAttribute("d", "");
+  const exteriorColor = await liveExterior.getAttribute("stroke");
+  const initialInteriorColor = await liveInterior.getAttribute("stroke");
+
+  for (const color of ["#00ff00", "#123456", "#abcdef"]) {
+    await page.locator("#optionsInteriorColorInput").fill(color);
+    await expect(page.locator("dialog[open]")).toBeVisible();
+    await expect(page.locator("#status")).toHaveText("Interior outline color updated.");
+    await expect(liveInterior).toHaveAttribute("stroke", color);
+    await expect(printInterior).toHaveAttribute("stroke", color);
+    await expect(liveExterior).toHaveAttribute("stroke", exteriorColor);
+    await expect(printExterior).toHaveAttribute("stroke", exteriorColor);
+  }
+
+  await page.locator("#optionsCancelBtn").click();
+  await expect(liveInterior).toHaveAttribute("stroke", initialInteriorColor);
+  await expect(printInterior).toHaveAttribute("stroke", initialInteriorColor);
+});
+
 test("print preview strokes only cut outlines, not fold seam body paths", async ({ page }) => {
   await page.goto(appUrl);
   const status = await drawPath(page, [
