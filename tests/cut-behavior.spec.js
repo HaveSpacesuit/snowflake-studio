@@ -11,6 +11,7 @@ test("a new random cut after undo clears the redo branch", async ({ page }) => {
   const randomCutButton = page.locator("#randomCutBtn");
   const status = page.locator("#status");
 
+  await expect(page.getByRole("status")).toHaveAttribute("id", "status");
   await randomCutButton.click();
   await expect(status).toContainText("Accepted");
   await expect(undoButton).toBeEnabled();
