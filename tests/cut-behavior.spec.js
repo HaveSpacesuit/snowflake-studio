@@ -307,6 +307,28 @@ test("browser print layout gives the snowflake preview an explicit rendered size
   expect(outlineBounds.height).toBeGreaterThan(0);
 });
 
+test("print instructions include the create-your-own link at the bottom of the page", async ({ page }) => {
+  await page.goto(appUrl);
+  await page.emulateMedia({ media: "print" });
+
+  const footer = page.locator(".printFooter");
+  await expect(footer).toContainText("Create your own at");
+  await expect(footer.locator("a")).toHaveAttribute(
+    "href",
+    "https://havespacesuit.github.io/snowflake-studio"
+  );
+  await expect(footer.locator("a")).toHaveCSS("text-decoration-line", "none");
+
+  const footerBox = await footer.boundingBox();
+  const contentBox = await page.locator(".printBottom").boundingBox();
+  const sheetBox = await page.locator("[data-print-sheet]").boundingBox();
+  if (!footerBox || !contentBox || !sheetBox) throw new Error("Print footer layout was not rendered");
+
+  expect(footerBox.y).toBeGreaterThanOrEqual(contentBox.y + contentBox.height);
+  expect(footerBox.y + footerBox.height).toBeLessThanOrEqual(sheetBox.y + sheetBox.height);
+  expect(sheetBox.y + sheetBox.height - (footerBox.y + footerBox.height)).toBeLessThan(38);
+});
+
 test("interior outline color stays current in both previews while Options remains open", async ({ page }) => {
   await page.goto(appUrl);
   const status = await drawPath(page, [

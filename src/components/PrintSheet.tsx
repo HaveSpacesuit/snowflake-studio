@@ -117,6 +117,12 @@ export default function PrintSheet({ paperSize, paperGeom, previewSvg, sideCount
           </div>
         )}
       </div>
+      <p className="printFooter">
+        Create your own at{" "}
+        <a href="https://havespacesuit.github.io/snowflake-studio">
+          https://havespacesuit.github.io/snowflake-studio
+        </a>
+      </p>
     </div>
   );
 }
