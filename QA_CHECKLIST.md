@@ -130,7 +130,28 @@ result.
   treated as a straight cut without changing the selected tool.
 - [ ] Hold Shift while drawing an invalid path and verify normal validation
   still applies.
-- [ ] Verify Straight mode does not remain armed after the gesture.
+- [ ] Verify Straight mode does not remain armed after the cut is applied or
+  cancelled.
+- [ ] Start a straight cut (Straight tool or Shift) outside the paper and
+  release inside it. Verify the paper is unchanged, a dot marks the corner,
+  the status says the straight cut is in progress, and **Cancel cut** appears.
+- [ ] Move the mouse and verify the next segment follows the pointer from the
+  corner. Click or drag to add corners, finish outside the paper, and verify
+  the whole path is applied as one cut.
+- [ ] Verify a completed multi-segment cut is removed by a single Undo and
+  restored by a single Redo.
+- [ ] While a cut is pending, verify Undo removes the last corner, undoing the
+  first segment cancels the cut, and Redo is disabled.
+- [ ] Verify releasing Shift (Shift cuts only), Escape, **Cancel cut**,
+  switching tools, and **Random cut** each cancel a pending cut without
+  changing the paper.
+- [ ] Start a Shift or Straight tool cut inside the paper and verify it is
+  rejected without leaving a pending cut.
+- [ ] On a touch device, lift a straight cut inside the paper, then tap and
+  drag to add corners and finish outside the paper. Verify a pinch or touch
+  cancellation drops only the segment in progress.
+- [ ] On a phone-sized screen, verify **Cancel cut** is easy to reach and does
+  not cover the Edit tool rail.
 - [ ] On a touch device, long-press Edit long enough to arm a one-time straight
   cut, then drag through the paper and verify it is accepted as straight.
 - [ ] Verify a short touch tap does not accidentally arm Straight mode.

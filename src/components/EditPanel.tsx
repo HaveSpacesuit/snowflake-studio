@@ -10,9 +10,11 @@ import { useToolbarOverflow } from "../hooks/useToolbarOverflow.ts";
 
 /**
  * The "Edit" panel: hosts the folded-paper SVG (built by the engine into
- * `hostRef`) plus the cut-history toolbar and zoom badge.
+ * `hostRef`) plus the cut-history toolbar and zoom badge. While a
+ * multi-segment straight cut is pending it also shows a "Cancel cut" button
+ * over the canvas.
  */
-export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUndo, canRedo, onSelectTool, onToggleCircleResize, onNew, onUndo, onRedo, onRandomCut }) {
+export default function EditPanel({ hostRef, activeTool, circleResizeMode, straightCutPending, canUndo, canRedo, onSelectTool, onToggleCircleResize, onCancelStraightCut, onNew, onUndo, onRedo, onRandomCut }) {
   const tools = [
     {
       id: "freehand",
@@ -74,6 +76,15 @@ export default function EditPanel({ hostRef, activeTool, circleResizeMode, canUn
       <div className="editCanvasShell">
         <VerticalToolRail tools={tools} className="editToolsRail" ariaLabel="Edit tools" />
         <div className="panelSvgHost" ref={hostRef} />
+        {straightCutPending && (
+          <button
+            type="button"
+            className="straightCutCancel"
+            onClick={() => onCancelStraightCut?.()}
+          >
+            Cancel cut
+          </button>
+        )}
       </div>
       <div className="panelToolbar">
         <span className="panelActions" ref={actionsRef}>

@@ -622,7 +622,7 @@ async function drawShiftLine(page, start, end) {
   return (await page.locator("#status").textContent()) || "";
 }
 
-async function drawShiftLineWithWaypoints(page, start, waypoints) {
+async function drawShiftLineWithWaypoints(page, start, waypoints, { releaseShift = true } = {}) {
   const canvas = page.locator("#foldedCanvas");
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Folded canvas not found");
@@ -641,7 +641,7 @@ async function drawShiftLineWithWaypoints(page, start, waypoints) {
   }
 
   await page.mouse.up();
-  await page.keyboard.up("Shift");
+  if (releaseShift) await page.keyboard.up("Shift");
   return (await page.locator("#status").textContent()) || "";
 }
 
@@ -699,6 +699,54 @@ async function touchFoldedPoint(page, type, pointerId, point) {
     clientX: target.x,
     clientY: target.y
   });
+}
+
+/** Like touchFoldedPoint, but honours the folded view's current zoom and pan. */
+async function touchFoldedWorldPoint(page, type, pointerId, point) {
+  const canvas = page.locator("#foldedCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Folded canvas not found");
+
+  const intrinsic = await panelSize(canvas);
+  const scale = await zoomScale(page, "#foldedCanvas");
+  const offset = await zoomOffsets(page, "#foldedCanvas");
+  const rotated = rotatePoint(point, await foldedRotation(page));
+  await canvas.dispatchEvent(type, {
+    pointerId,
+    pointerType: "touch",
+    clientX: box.x + ((rotated.x * scale + offset.x) / intrinsic.width) * box.width,
+    clientY: box.y + ((rotated.y * scale + offset.y) / intrinsic.height) * box.height
+  });
+}
+
+async function hoverFoldedPoint(page, point) {
+  const canvas = page.locator("#foldedCanvas");
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("Folded canvas not found");
+
+  const intrinsic = await panelSize(canvas);
+  const target = await foldedPointToPage(page, box, intrinsic, point);
+  await page.mouse.move(target.x, target.y);
+}
+
+async function stubFoldedPointerCapture(page) {
+  await page.locator("#foldedCanvas").evaluate((canvas) => {
+    canvas.setPointerCapture = () => {};
+    canvas.releasePointerCapture = () => {};
+  });
+}
+
+function cancelCutButton(page) {
+  return page.getByRole("button", { name: "Cancel cut", exact: true });
+}
+
+/** Long-press outside the paper, drag a straight segment to `corner` inside it, and lift. */
+async function startTouchStraightChain(page, start, corner) {
+  await touchFoldedPoint(page, "pointerdown", 1, start);
+  await expect(page.locator("#status")).toHaveText("Straight-line mode armed: drag to cut.");
+  await touchFoldedPoint(page, "pointermove", 1, corner);
+  await expect(page.locator("#status")).toHaveText("Release to place a corner, then continue the straight cut.");
+  await touchFoldedPoint(page, "pointerup", 1, corner);
 }
 
 async function whitePixelCount(page) {
@@ -975,17 +1023,28 @@ test.describe("snowflake cut validity", () => {
 
   test("shift line endpoint follows cursor until mouseup", async ({ page }) => {
     await reset(page);
+    const before = await whitePixelCount(page);
 
+    // Passing through an edge-ready position must not cut; the release point wins
+    // and, being inside the paper, leaves a pending multi-segment straight cut.
     const status = await drawShiftLineWithWaypoints(
       page,
       { x: 238, y: 100 },
       [
         { x: 360, y: 255 },
         { x: 284, y: 208 }
-      ]
+      ],
+      { releaseShift: false }
     );
 
-    expect(statusIsRejected(status)).toBe(true);
+    expect(status).toMatch(/^Straight cut in progress/);
+    expect(await whitePixelCount(page)).toBe(before);
+    await expect(cancelCutButton(page)).toBeVisible();
+
+    await page.keyboard.up("Shift");
+    await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+    await expect(cancelCutButton(page)).toBeHidden();
+    expect(await whitePixelCount(page)).toBe(before);
   });
 
   test("default stroke applies prettify before subtraction", async ({ page }) => {
@@ -1380,6 +1439,7 @@ test.describe("snowflake cut validity", () => {
   test("straight tool constrains cut without holding shift", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Straight tool");
+    const before = await whitePixelCount(page);
 
     const status = await drawPath(page, [
       { x: 238, y: 100 },
@@ -1387,7 +1447,13 @@ test.describe("snowflake cut validity", () => {
       { x: 284, y: 208 }
     ]);
 
-    expect(statusIsRejected(status)).toBe(true);
+    expect(status).toMatch(/^Straight cut in progress/);
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+    await expect(cancelCutButton(page)).toBeHidden();
+    expect(await whitePixelCount(page)).toBe(before);
   });
 
   test("circle tool applies a cut without holding ctrl", async ({ page }) => {
@@ -1713,4 +1779,363 @@ test.describe("snowflake cut validity", () => {
       await expect(page.locator("#undoBtn")).toBeEnabled();
     });
   }
+});
+
+test.describe("multi-segment straight cuts", () => {
+  const SHIFT_PROMPT = "Straight cut in progress: click or drag to add the next segment. Release Shift or press Esc to cancel.";
+  const TOOL_PROMPT = "Straight cut in progress: click or drag to add the next segment. Press Esc or Cancel cut to cancel.";
+  const TOUCH_PROMPT = "Straight cut in progress: drag or tap to add the next segment, or tap Cancel cut.";
+  const CORNER_TEXT = "Release to place a corner, then continue the straight cut.";
+  const outsideTop = { x: 238, y: 100 };
+  const insideCorner = { x: 230, y: 220 };
+  const insideCorner2 = { x: 284, y: 208 };
+  const outsideRight = { x: 360, y: 255 };
+
+  function anchorDot(page) {
+    return page.locator('#foldedCanvas [data-role="cut-anchor"]');
+  }
+
+  function liveCut(page) {
+    return page.locator('#foldedCanvas [data-role="live-cut"]');
+  }
+
+  test("two Shift segments cut one V-notch as a single undo step", async ({ page }) => {
+    await reset(page);
+    const before = await whitePixelCount(page);
+    await expect(anchorDot(page)).toBeHidden();
+
+    const status = await drawShiftLineWithWaypoints(page, outsideTop, [{ x: 240, y: 200 }], { releaseShift: false });
+    expect(status).toBe(SHIFT_PROMPT);
+    await expect(anchorDot(page)).toBeVisible();
+    await expect(cancelCutButton(page)).toBeVisible();
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+    await expect(page.locator("#redoBtn")).toBeDisabled();
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await hoverFoldedPoint(page, { x: 290, y: 100 });
+    await expect(page.locator("#status")).toHaveText("Edge-to-edge ready: click to cut.");
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await clickFoldedPoint(page, { x: 290, y: 100 });
+    await page.keyboard.up("Shift");
+    const accepted = (await page.locator("#status").textContent()) || "";
+    expect(statusIsAccepted(accepted)).toBe(true);
+    expect(accepted).toContain("2 segments");
+    expect(accepted).toContain("Components: 1");
+    await expect(anchorDot(page)).toBeHidden();
+    await expect(cancelCutButton(page)).toBeHidden();
+    await expect(liveCut(page)).toHaveAttribute("d", "");
+
+    // The notch between the segments (≈ 1460 px) plus the 3 px cut along both sides.
+    const after = await whitePixelCount(page);
+    expect(before - after).toBeGreaterThan(1300);
+    expect(before - after).toBeLessThan(2200);
+
+    await page.locator("#undoBtn").click();
+    await expect(page.locator("#status")).toHaveText("Undid last cut.");
+    expect(await whitePixelCount(page)).toBe(before);
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+
+    await page.locator("#redoBtn").click();
+    await expect(page.locator("#status")).toHaveText("Redid last cut.");
+    expect(await whitePixelCount(page)).toBe(after);
+  });
+
+  test("the Straight tool chains clicked corners until the cut leaves the paper", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Straight tool");
+    const before = await whitePixelCount(page);
+
+    const status = await drawPath(page, [outsideTop, insideCorner]);
+    expect(status).toBe(TOOL_PROMPT);
+    await expect(liveCut(page)).not.toHaveAttribute("d", "");
+
+    await clickFoldedPoint(page, insideCorner2);
+    await expect(page.locator("#status")).toHaveText(TOOL_PROMPT);
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await hoverFoldedPoint(page, outsideRight);
+    await expect(page.locator("#status")).toHaveText("Edge-to-edge ready: click to cut.");
+    await clickFoldedPoint(page, outsideRight);
+
+    const accepted = (await page.locator("#status").textContent()) || "";
+    expect(statusIsAccepted(accepted)).toBe(true);
+    expect(accepted).toContain("3 segments");
+    expect(await whitePixelCount(page)).toBeLessThan(before);
+    await expect(cancelCutButton(page)).toBeHidden();
+
+    await page.locator("#undoBtn").click();
+    expect(await whitePixelCount(page)).toBe(before);
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+  });
+
+  test("a pending cut only applies from a segment previewed as edge-to-edge", async ({ page }) => {
+    await reset(page);
+    await selectTool(page, "Straight tool");
+    const before = await whitePixelCount(page);
+    await drawPath(page, [outsideTop, insideCorner]);
+
+    const canvas = page.locator("#foldedCanvas");
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("Folded canvas not found");
+    const intrinsic = await panelSize(canvas);
+    const press = await foldedPointToPage(page, box, intrinsic, { x: 260, y: 210 });
+    const release = await foldedPointToPage(page, box, intrinsic, outsideRight);
+    await page.mouse.move(press.x, press.y);
+    await page.mouse.down();
+    await expect(page.locator("#status")).toHaveText(CORNER_TEXT);
+    await canvas.dispatchEvent("pointerup", {
+      pointerId: 1,
+      pointerType: "mouse",
+      button: 0,
+      buttons: 0,
+      clientX: release.x,
+      clientY: release.y,
+      bubbles: true,
+      cancelable: true
+    });
+    await page.mouse.up();
+
+    expect(await whitePixelCount(page)).toBe(before);
+    await expect(cancelCutButton(page)).toBeVisible();
+    await expect(page.locator("#status")).toHaveText("Edge-to-edge ready: click to cut.");
+  });
+
+  for (const method of ["Cancel cut button", "tool switch", "Random cut"]) {
+    test(`${method} cancels a pending straight cut`, async ({ page }) => {
+      await reset(page);
+      await selectTool(page, "Straight tool");
+      const before = await whitePixelCount(page);
+      expect(await drawPath(page, [outsideTop, insideCorner])).toBe(TOOL_PROMPT);
+      await expect(cancelCutButton(page)).toBeVisible();
+
+      if (method === "Cancel cut button") {
+        await cancelCutButton(page).click();
+        await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+      } else if (method === "tool switch") {
+        await selectTool(page, "Freehand tool");
+        await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+      } else {
+        await page.locator("#randomCutBtn").click();
+        await expect(page.locator("#status")).toHaveText(/^Accepted \(/);
+      }
+
+      await expect(cancelCutButton(page)).toBeHidden();
+      await expect(anchorDot(page)).toBeHidden();
+      await expect(liveCut(page)).toHaveAttribute("d", "");
+      if (method === "Random cut") {
+        // Only the random cut reached history; undoing it restores the uncut paper.
+        await page.locator("#undoBtn").click();
+      }
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+      expect(await whitePixelCount(page)).toBe(before);
+    });
+  }
+
+  test("a pointer event without Shift cancels a Shift cut whose keyup was missed", async ({ page }) => {
+    await reset(page);
+    const before = await whitePixelCount(page);
+    expect(await drawShiftLineWithWaypoints(page, outsideTop, [insideCorner], { releaseShift: false })).toBe(SHIFT_PROMPT);
+
+    const canvas = page.locator("#foldedCanvas");
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("Folded canvas not found");
+    const intrinsic = await panelSize(canvas);
+    const target = await foldedPointToPage(page, box, intrinsic, insideCorner2);
+    await canvas.dispatchEvent("pointermove", {
+      pointerId: 1,
+      pointerType: "mouse",
+      shiftKey: false,
+      clientX: target.x,
+      clientY: target.y,
+      bubbles: true
+    });
+
+    await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+    await expect(cancelCutButton(page)).toBeHidden();
+    await page.keyboard.up("Shift");
+    expect(await whitePixelCount(page)).toBe(before);
+  });
+
+  for (const via of ["Shift", "Straight tool"]) {
+    test(`a ${via} cut that starts inside the paper is rejected without a pending cut`, async ({ page }) => {
+      await reset(page);
+      const before = await whitePixelCount(page);
+      let status;
+      if (via === "Shift") {
+        status = await drawShiftLineWithWaypoints(page, insideCorner, [insideCorner2]);
+      } else {
+        await selectTool(page, "Straight tool");
+        status = await drawPath(page, [insideCorner, insideCorner2]);
+      }
+
+      expect(status).toBe("Rejected: start the cut outside the paper.");
+      await expect(cancelCutButton(page)).toBeHidden();
+      await expect(page.locator("#undoBtn")).toBeDisabled();
+      expect(await whitePixelCount(page)).toBe(before);
+    });
+  }
+
+  test("Undo removes pending segments one at a time while Redo waits", async ({ page }) => {
+    await reset(page);
+    const firstCut = await drawPath(page, [outsideTop, { x: 250, y: 145 }, { x: 283, y: 205 }, { x: 318, y: 250 }, outsideRight]);
+    expect(statusIsAccepted(firstCut)).toBe(true);
+    await page.locator("#undoBtn").click();
+    await expect(page.locator("#redoBtn")).toBeEnabled();
+    const before = await whitePixelCount(page);
+
+    await drawShiftLineWithWaypoints(page, outsideTop, [insideCorner], { releaseShift: false });
+    await clickFoldedPoint(page, insideCorner2);
+    await expect(page.locator("#status")).toHaveText(SHIFT_PROMPT);
+    await expect(page.locator("#redoBtn")).toBeDisabled();
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+
+    // Shift is still held, so this arrives as Ctrl+Shift+Z: it must remove a segment, not redo.
+    await page.keyboard.press("Control+z");
+    await expect(page.locator("#status")).toHaveText("Removed last straight segment.");
+    await expect(cancelCutButton(page)).toBeVisible();
+    await page.keyboard.press("Control+y");
+    await expect(page.locator("#status")).toHaveText("Removed last straight segment.");
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await page.locator("#undoBtn").click();
+    await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+    await expect(cancelCutButton(page)).toBeHidden();
+    await page.keyboard.up("Shift");
+    await expect(page.locator("#redoBtn")).toBeEnabled();
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+    expect(await whitePixelCount(page)).toBe(before);
+  });
+
+  test("touch long-press starts a straight cut that continues with taps and drags", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await reset(page);
+    await stubFoldedPointerCapture(page);
+    const before = await whitePixelCount(page);
+
+    await startTouchStraightChain(page, outsideTop, insideCorner);
+    await expect(page.locator("#status")).toHaveText(TOUCH_PROMPT);
+    await expect(cancelCutButton(page)).toBeVisible();
+    await expect(anchorDot(page)).toBeVisible();
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await touchFoldedPoint(page, "pointerdown", 2, insideCorner2);
+    await touchFoldedPoint(page, "pointerup", 2, insideCorner2);
+    await expect(page.locator("#status")).toHaveText(TOUCH_PROMPT);
+    expect(await whitePixelCount(page)).toBe(before);
+
+    await touchFoldedPoint(page, "pointerdown", 3, { x: 270, y: 215 });
+    await expect(page.locator("#status")).toHaveText(CORNER_TEXT);
+    await touchFoldedPoint(page, "pointermove", 3, outsideRight);
+    await expect(page.locator("#status")).toHaveText("Edge-to-edge ready: release to cut.");
+    await touchFoldedPoint(page, "pointerup", 3, outsideRight);
+
+    const accepted = (await page.locator("#status").textContent()) || "";
+    expect(statusIsAccepted(accepted)).toBe(true);
+    expect(accepted).toContain("3 segments");
+    expect(await whitePixelCount(page)).toBeLessThan(before);
+    await expect(cancelCutButton(page)).toBeHidden();
+    await expect(anchorDot(page)).toBeHidden();
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+  });
+
+  test("tapping Cancel cut cancels a pending touch straight cut", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await reset(page);
+    await stubFoldedPointerCapture(page);
+    const paper = page.locator('#foldedCanvas [data-role="paper-shape"]');
+    const initialPath = await paper.getAttribute("d");
+
+    await startTouchStraightChain(page, outsideTop, insideCorner);
+    await touchFoldedPoint(page, "pointerdown", 2, insideCorner2);
+    await touchFoldedPoint(page, "pointerup", 2, insideCorner2);
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+
+    await cancelCutButton(page).click();
+    await expect(page.locator("#status")).toHaveText("Straight cut cancelled.");
+    await expect(cancelCutButton(page)).toBeHidden();
+    await expect(anchorDot(page)).toBeHidden();
+    await expect(liveCut(page)).toHaveAttribute("d", "");
+    await expect(paper).toHaveAttribute("d", initialPath);
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+  });
+
+  for (const interruption of ["pinch", "pointercancel"]) {
+    test(`a touch ${interruption} drops only the segment in progress`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await reset(page);
+      await stubFoldedPointerCapture(page);
+      const before = await whitePixelCount(page);
+
+      await startTouchStraightChain(page, outsideTop, insideCorner);
+      await touchFoldedPoint(page, "pointerdown", 2, { x: 250, y: 240 });
+      await expect(page.locator("#status")).toHaveText(CORNER_TEXT);
+      if (interruption === "pinch") {
+        await touchFoldedPoint(page, "pointerdown", 3, { x: 270, y: 240 });
+        await expect(page.locator("#status")).toHaveText(TOUCH_PROMPT);
+        await touchFoldedPoint(page, "pointermove", 3, { x: 310, y: 240 });
+        expect(await zoomScale(page, "#foldedCanvas")).toBeGreaterThan(1);
+        await touchFoldedPoint(page, "pointerup", 3, { x: 310, y: 240 });
+        await touchFoldedPoint(page, "pointerup", 2, { x: 250, y: 240 });
+      } else {
+        await touchFoldedPoint(page, "pointercancel", 2, { x: 250, y: 240 });
+      }
+
+      await expect(page.locator("#status")).toHaveText(TOUCH_PROMPT);
+      await expect(cancelCutButton(page)).toBeVisible();
+      expect(await whitePixelCount(page)).toBe(before);
+
+      // The cut continues from the same corner, whatever the zoom.
+      await touchFoldedWorldPoint(page, "pointerdown", 4, outsideRight);
+      await expect(page.locator("#status")).toHaveText("Edge-to-edge ready: release to cut.");
+      await touchFoldedWorldPoint(page, "pointerup", 4, outsideRight);
+      const accepted = (await page.locator("#status").textContent()) || "";
+      expect(statusIsAccepted(accepted)).toBe(true);
+      expect(accepted).toContain("2 segments");
+      expect(await whitePixelCount(page)).toBeLessThan(before);
+    });
+  }
+
+  test("the Cancel cut button sits clear of the tool rail on a phone", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await reset(page);
+    await stubFoldedPointerCapture(page);
+    await startTouchStraightChain(page, outsideTop, insideCorner);
+
+    const cancel = cancelCutButton(page);
+    await expect(cancel).toBeInViewport();
+    const cancelBox = await cancel.boundingBox();
+    const railBox = await page.locator(".editToolsRail").boundingBox();
+    const canvasBox = await page.locator("#foldedCanvas").boundingBox();
+    if (!cancelBox || !railBox || !canvasBox) throw new Error("Edit canvas controls were not rendered");
+
+    expect(cancelBox.x).toBeGreaterThan(railBox.x + railBox.width);
+    expect(cancelBox.y).toBeGreaterThanOrEqual(canvasBox.y);
+    expect(cancelBox.x + cancelBox.width).toBeLessThanOrEqual(canvasBox.x + canvasBox.width);
+    expect(cancelBox.height).toBeGreaterThanOrEqual(32);
+  });
+
+  test("straight segments keep the full cut width through a sharp corner", async ({ page }) => {
+    await page.goto(appUrl);
+    const result = await page.evaluate(async () => {
+      const { createBasePaperGeomForSideCount, getOuterBaseForSideCount } = await import("/src/geometry/paper.ts");
+      const { computeCutOutcome } = await import("/src/geometry/cuts.ts");
+      const { geomArea } = await import("/src/geometry/polygon.ts");
+      const outcome = computeCutOutcome(
+        createBasePaperGeomForSideCount(6),
+        [{ x: 238, y: 100 }, { x: 250, y: 260 }, { x: 262, y: 100 }],
+        "edge",
+        getOuterBaseForSideCount(6),
+        { straight: true }
+      );
+      return outcome && { components: outcome.finalGeom.length, removedArea: geomArea(outcome.removedGeom) };
+    });
+
+    // The ≈ 8.6° notch is cut free in one piece: the area between the inner
+    // edges of the two 3 px cuts is ≈ 990 px.
+    expect(result).not.toBeNull();
+    expect(result.components).toBe(1);
+    expect(result.removedArea).toBeGreaterThan(900);
+    expect(result.removedArea).toBeLessThan(1100);
+  });
 });

@@ -89,10 +89,23 @@ function buildFoldedContent() {
     "stroke-linecap": "round",
     "stroke-linejoin": "round"
   });
+  // Marks where the next segment of a pending multi-segment straight cut starts.
+  const cutAnchor = createSvgElement("circle", {
+    "data-role": "cut-anchor",
+    cx: "0",
+    cy: "0",
+    r: "4",
+    fill: "#ffd166",
+    stroke: "#0a1220",
+    "stroke-width": "1.5",
+    "pointer-events": "none"
+  });
+  cutAnchor.style.display = "none";
   paperScene.appendChild(paper);
   paperScene.appendChild(border);
   paperScene.appendChild(fallingCuts);
   paperScene.appendChild(liveCut);
+  paperScene.appendChild(cutAnchor);
   return paperScene;
 }
 
@@ -137,7 +150,8 @@ export function extractFoldedLayer(svg) {
     paper: svg.querySelector("[data-role='paper-shape']"),
     border: svg.querySelector("[data-role='paper-border']"),
     fallingCuts: svg.querySelector("[data-role='falling-cuts']"),
-    liveCut: svg.querySelector("[data-role='live-cut']")
+    liveCut: svg.querySelector("[data-role='live-cut']"),
+    cutAnchor: svg.querySelector("[data-role='cut-anchor']")
   };
 }
 

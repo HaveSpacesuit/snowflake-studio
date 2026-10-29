@@ -34,6 +34,14 @@ is snapped to it. Returning through the same edge is allowed, but an
 interior-only stroke is rejected. Circle cuts must be inside the paper or
 overlap it to remove material.
 
+Straight cuts can turn corners. A straight cut that starts outside the paper
+and is released inside it waits at that corner; each click, tap, or drag adds
+another straight segment from the last corner until one leaves the paper. The
+whole path is then applied as one cut and one Undo step. While a cut is
+waiting, Undo removes the last corner and `Esc` or **Cancel cut** abandons it.
+When drawing with `Shift`, keep it held until the cut is done; releasing it
+cancels the waiting cut.
+
 On desktop, `Shift` while drawing makes a straight stroke. In Circle mode,
 `Ctrl+wheel` (or `Command+wheel` on macOS) changes the radius and clicking
 applies the cut. Holding `Ctrl`/`Command` temporarily uses Circle mode.

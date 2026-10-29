@@ -45,7 +45,9 @@ import {
 } from "../geometry/polygon.ts";
 import polygonClipping from "polygon-clipping";
 import {
+  classifyStraightCut,
   computeCutOutcome,
+  dedupeCutPath,
   getCutRemovalFraction,
   getLiveCutPreview,
   prettifyCutPath,
@@ -94,7 +96,8 @@ export function createStudioEngine(config) {
     onOptions = noop,
     onCanSave = noop,
     onToolChange = noop,
-    onCircleResizeMode = noop
+    onCircleResizeMode = noop,
+    onStraightCutPending = noop
   } = config;
 
   const backgroundCtx = backgroundCanvas.getContext("2d");
@@ -134,6 +137,11 @@ export function createStudioEngine(config) {
     touchDrawStartPoint: null,
     touchDrawStartTime: 0,
     touchDrawMoved: false,
+    // A multi-segment straight cut that has entered the paper but not yet left
+    // it: `vertices` are the committed corners, the last one being the anchor
+    // the next segment starts from. `source` is "shift", "tool", or "touch".
+    straightChain: null,
+    straightChainHover: null,
     circleCutRadius: CIRCLE_RADIUS_DEFAULT,
     circleHoverPoint: null,
     lastCollectionSavedSignature: null,
@@ -192,8 +200,17 @@ export function createStudioEngine(config) {
     onCanSave(signature !== state.lastCollectionSavedSignature);
   }
 
+  function emitHistoryState() {
+    const pending = state.straightChain !== null;
+    onHistory({
+      canUndo: state.undoStack.length > 0 || pending,
+      canRedo: state.redoStack.length > 0 && !pending
+    });
+    onStraightCutPending(pending);
+  }
+
   function updateHistoryControls() {
-    onHistory({ canUndo: state.undoStack.length > 0, canRedo: state.redoStack.length > 0 });
+    emitHistoryState();
     syncSaveToCollectionControl();
     persistState();
   }
@@ -349,6 +366,7 @@ export function createStudioEngine(config) {
     const normalized = typeof nextTool === "string" ? nextTool.toLowerCase() : "";
     if (!TOOL_IDS.has(normalized) || normalized === state.activeTool) return false;
 
+    cancelStraightChain();
     state.activeTool = normalized;
     state.touchStraightArmed = false;
 
@@ -369,7 +387,8 @@ export function createStudioEngine(config) {
   }
 
   function isCircleToolActive(evt) {
-    return state.activeTool === TOOL_CIRCLE || isCircleModeModifierActive(evt);
+    // A pending straight cut owns the pointer, so the Ctrl/Command shortcut must not hijack it.
+    return state.activeTool === TOOL_CIRCLE || (!state.straightChain && isCircleModeModifierActive(evt));
   }
 
   function getCircleCenterFromCursor(cursorPt) {
@@ -662,7 +681,8 @@ export function createStudioEngine(config) {
   }
 
   function getDisplayedCutPoints(points) {
-    if (state.livePreview.mode === "circle" || state.livePreview.mode === "invalid" || points.length < 3) return points;
+    const mode = state.livePreview.mode;
+    if (state.straightChain || mode === "circle" || mode === "invalid" || mode === "partial" || points.length < 3) return points;
     const pretty = prettifyCutPath(points);
     return pretty.length >= 2 ? pretty : points;
   }
@@ -711,18 +731,38 @@ export function createStudioEngine(config) {
     if (state.currentCut.length > 1) {
       const drawPoints = getDisplayedCutPoints(state.currentCut);
       foldedLayer.liveCut.setAttribute("d", pointsToPath(drawPoints.map((p) => [p.x, p.y])));
-      const previewStroke = state.livePreview.mode === "edge" || state.livePreview.mode === "circle" ? "#6fd7ff" : "#ff7ca8";
+      const mode = state.livePreview.mode;
+      const previewStroke = mode === "edge" || mode === "circle" ? "#6fd7ff" : mode === "partial" ? "#ffd166" : "#ff7ca8";
       foldedLayer.liveCut.setAttribute("stroke", previewStroke);
       foldedLayer.liveCut.style.display = "";
     } else {
       foldedLayer.liveCut.style.display = "none";
       foldedLayer.liveCut.setAttribute("d", "");
     }
+    updateStraightChainAnchor();
 
     const paperArea = geomArea(state.paperGeom);
     foldedSvg.dataset.paperPixels = String(Math.round(paperArea));
     (window as any).__snowflakePaperPixels = Math.round(paperArea);
     (window as any).__snowflakePaperArea = paperArea;
+  }
+
+  function updateStraightChainAnchor() {
+    const anchorEl = foldedLayer.cutAnchor;
+    if (!anchorEl) return;
+    const chain = state.straightChain;
+    if (!chain || chain.vertices.length === 0) {
+      if (anchorEl.style.display !== "none") anchorEl.style.display = "none";
+      return;
+    }
+    const anchor = chain.vertices[chain.vertices.length - 1];
+    // Divide by the zoom so the dot keeps the same on-screen size at any zoom.
+    const scale = state.foldedView.scale > 0 ? state.foldedView.scale : 1;
+    anchorEl.setAttribute("cx", anchor.x.toFixed(2));
+    anchorEl.setAttribute("cy", anchor.y.toFixed(2));
+    anchorEl.setAttribute("r", (5 / scale).toFixed(3));
+    anchorEl.setAttribute("stroke-width", (1.5 / scale).toFixed(3));
+    anchorEl.style.display = "";
   }
 
   function updateUnfoldedSvg() {
@@ -901,8 +941,8 @@ export function createStudioEngine(config) {
     state.redoStack = [];
   }
 
-  function applyCut(points, mode) {
-    const outcome = computeCutOutcome(state.paperGeom, points, mode, getCurrentOuterBase());
+  function applyCut(points, mode, outcomeOptions = {}) {
+    const outcome = computeCutOutcome(state.paperGeom, points, mode, getCurrentOuterBase(), outcomeOptions);
     if (!outcome) return false;
     state.paperGeom = outcome.finalGeom;
     state.unfoldedDirty = true;
@@ -968,10 +1008,20 @@ export function createStudioEngine(config) {
       }
     }
 
+    commitEdgeCut(cut, validation, { prettified });
+  }
+
+  /**
+   * Apply an already-validated cut as one undoable step: snapshot for Undo,
+   * subtract the cut ribbon, start the falling-scrap animation, and report the
+   * result. `straight` keeps the path's corners exactly; `segments` (> 1) is
+   * reported for multi-segment straight cuts.
+   */
+  function commitEdgeCut(cut, validation, { prettified = false, straight = false, segments = 1 } = {}) {
     const beforeArea = geomArea(state.paperGeom);
     const beforeGeom = cloneGeom(state.paperGeom);
     pushUndoSnapshot();
-    const cutResult = applyCut(cut, validation.mode);
+    const cutResult = applyCut(cut, validation.mode, { straight });
     if (!cutResult || !cutResult.applied) {
       state.undoStack.pop();
       state.paperGeom = beforeGeom;
@@ -980,7 +1030,7 @@ export function createStudioEngine(config) {
       resetCutDraft("Ready");
       updateHistoryControls();
       render();
-      return;
+      return false;
     }
     enqueueFallingCutAnimation(cutResult.removedGeom);
     const afterArea = geomArea(state.paperGeom);
@@ -988,8 +1038,9 @@ export function createStudioEngine(config) {
     if (afterArea >= beforeArea) {
       setStatus("Cut accepted (" + validation.reason + "), but no removable piece detected.");
     } else {
+      const detail = segments > 1 ? ", " + segments + " segments" : prettified ? ", prettified" : "";
       setStatus(
-        "Accepted (" + validation.reason + (prettified ? ", prettified" : "") + "). Components: " +
+        "Accepted (" + validation.reason + detail + "). Components: " +
           state.paperGeom.length + ", remaining area: " + Math.round(afterArea) + " px"
       );
     }
@@ -997,6 +1048,7 @@ export function createStudioEngine(config) {
     resetCutDraft(null);
     updateHistoryControls();
     render();
+    return true;
   }
 
   function resetCutDraft(statusText) {
@@ -1005,7 +1057,188 @@ export function createStudioEngine(config) {
     if (statusText) state.livePreview.text = statusText;
   }
 
+  // -------------------------------------------------------------------------
+  // Multi-segment straight cuts
+  //
+  // A straight cut released inside the paper becomes a pending "chain". Each
+  // further press adds a straight segment from the last corner (the anchor)
+  // until the whole poly-line is a valid edge-to-edge cut, which is then
+  // applied as a single cut and a single Undo step. Nothing is saved while a
+  // chain is pending.
+  // -------------------------------------------------------------------------
+
+  function getStraightChainSource(evt) {
+    if (evt.pointerType === "touch") return "touch";
+    return state.activeTool === TOOL_STRAIGHT ? "tool" : "shift";
+  }
+
+  function isStraightChainShiftReleased(evt) {
+    return !!state.straightChain && state.straightChain.source === "shift" && evt.pointerType !== "touch" && !evt.shiftKey;
+  }
+
+  function getStraightChainPrompt() {
+    const source = state.straightChain ? state.straightChain.source : "tool";
+    if (source === "touch") {
+      return "Straight cut in progress: drag or tap to add the next segment, or tap Cancel cut.";
+    }
+    if (source === "shift") {
+      return "Straight cut in progress: click or drag to add the next segment. Release Shift or press Esc to cancel.";
+    }
+    return "Straight cut in progress: click or drag to add the next segment. Press Esc or Cancel cut to cancel.";
+  }
+
+  function getStraightChainSegmentText(mode, hovering) {
+    if (mode === "edge") return hovering ? "Edge-to-edge ready: click to cut." : "Edge-to-edge ready: release to cut.";
+    if (mode === "partial") return hovering ? getStraightChainPrompt() : "Release to place a corner, then continue the straight cut.";
+    return "Need an edge-to-edge cut.";
+  }
+
+  /**
+   * Point the live preview at the pending chain, optionally extended by a
+   * segment from the anchor to `endPoint` (the pointer).
+   */
+  function updateStraightChainDraft(endPoint = null, hovering = false) {
+    const chain = state.straightChain;
+    if (!chain) return;
+    if (!endPoint) {
+      state.currentCut = chain.vertices.map((p) => ({ x: p.x, y: p.y }));
+      state.livePreview = { mode: "partial", text: getStraightChainPrompt() };
+      return;
+    }
+    state.currentCut = [...chain.vertices.map((p) => ({ x: p.x, y: p.y })), { x: endPoint.x, y: endPoint.y }];
+    const preview = classifyStraightCut(state.currentCut, state.paperGeom);
+    state.livePreview = { mode: preview.mode, text: getStraightChainSegmentText(preview.mode, hovering) };
+  }
+
+  function resetTouchDraft() {
+    state.touchDrawStartPoint = null;
+    state.touchDrawMoved = false;
+    state.touchDrawStartTime = 0;
+  }
+
+  function releaseFoldedPointer(pointerId) {
+    try {
+      if (foldedSvg.hasPointerCapture(pointerId)) foldedSvg.releasePointerCapture(pointerId);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  function beginStraightChain(evt, vertices) {
+    state.straightChain = {
+      vertices: vertices.map((p) => ({ x: p.x, y: p.y })),
+      source: getStraightChainSource(evt)
+    };
+    state.straightChainHover = null;
+    state.circleHoverPoint = null;
+    state.drawing = false;
+    if (evt.pointerType === "touch") state.touchStraightArmed = false;
+    resetTouchDraft();
+    updateStraightChainDraft();
+    setStatus(state.livePreview.text);
+    emitHistoryState();
+    render();
+  }
+
+  /** Drop a pending chain without touching status or rendering. Returns true when one existed. */
+  function discardStraightChain() {
+    if (!state.straightChain) return false;
+    state.straightChain = null;
+    state.straightChainHover = null;
+    state.drawing = false;
+    resetTouchDraft();
+    resetCutDraft("Ready");
+    emitHistoryState();
+    return true;
+  }
+
+  function cancelStraightChain(statusText = "Straight cut cancelled.") {
+    if (!discardStraightChain()) return false;
+    setStatus(statusText);
+    render();
+    return true;
+  }
+
+  /** Abandon only the segment being drawn; the pending chain and its anchor stay. */
+  function abandonStraightChainSegment() {
+    state.drawing = false;
+    state.straightChainHover = null;
+    resetTouchDraft();
+    updateStraightChainDraft();
+    setStatus(state.livePreview.text);
+    render();
+  }
+
+  function startStraightChainSegment(evt, pt) {
+    state.drawing = true;
+    state.straightChainHover = null;
+    state.touchDrawStartPoint = evt.pointerType === "touch" ? { x: pt.x, y: pt.y } : null;
+    state.touchDrawMoved = false;
+    state.touchDrawStartTime = evt.pointerType === "touch" ? performance.now() : 0;
+    updateStraightChainDraft(pt);
+    setStatus(state.livePreview.text);
+    if (evt.pointerType !== "touch") capturePointer(foldedSvg, evt.pointerId);
+    render();
+  }
+
+  function finishStraightChainSegment(evt) {
+    const chain = state.straightChain;
+    releaseFoldedPointer(evt.pointerId);
+    resetTouchDraft();
+
+    const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+    const releaseStartedReady = state.livePreview.mode === "edge";
+    const path = [...chain.vertices, { x: pt.x, y: pt.y }];
+    const preview = classifyStraightCut(path, state.paperGeom);
+
+    if (preview.mode === "edge" && releaseStartedReady) {
+      completeStraightChain(path, preview);
+      return;
+    }
+
+    let statusText = null;
+    if (preview.mode === "partial") {
+      const anchor = chain.vertices[chain.vertices.length - 1];
+      if (dist(anchor, pt) >= 2) chain.vertices.push({ x: pt.x, y: pt.y });
+      statusText = getStraightChainPrompt();
+    } else if (preview.mode !== "edge") {
+      statusText = "Segment not added: need an edge-to-edge cut.";
+    }
+    // An edge-to-edge release that was not ready on the last move is left as a
+    // live preview so the cut is only applied once it has been shown as valid.
+    const hoverPt = evt.pointerType === "touch" ? null : pt;
+    state.straightChainHover = hoverPt;
+    updateStraightChainDraft(hoverPt, true);
+    setStatus(statusText || state.livePreview.text);
+    render();
+  }
+
+  function completeStraightChain(path, preview) {
+    const cut = dedupeCutPath(path);
+    state.straightChain = null;
+    state.straightChainHover = null;
+    commitEdgeCut(cut, { mode: "edge", reason: preview.reason }, { straight: true, segments: cut.length - 1 });
+  }
+
+  function undoStraightChainSegment() {
+    const chain = state.straightChain;
+    if (chain.vertices.length <= 2) {
+      cancelStraightChain();
+      return;
+    }
+    chain.vertices.pop();
+    state.drawing = false;
+    resetTouchDraft();
+    updateStraightChainDraft(state.straightChainHover, true);
+    setStatus("Removed last straight segment.");
+    render();
+  }
+
   function undoLastCut() {
+    if (state.straightChain) {
+      undoStraightChainSegment();
+      return;
+    }
     if (state.undoStack.length === 0) return;
     clearFallingCutAnimations();
     state.redoStack.push(cloneGeom(state.paperGeom));
@@ -1019,7 +1252,7 @@ export function createStudioEngine(config) {
   }
 
   function redoLastCut() {
-    if (state.redoStack.length === 0) return;
+    if (state.straightChain || state.redoStack.length === 0) return;
     clearFallingCutAnimations();
     state.undoStack.push(cloneGeom(state.paperGeom));
     state.paperGeom = state.redoStack.pop();
@@ -1044,7 +1277,9 @@ export function createStudioEngine(config) {
     const modifierPressed = evt.ctrlKey || evt.metaKey;
     if (!modifierPressed || evt.altKey) return;
     const key = evt.key.toLowerCase();
-    if (key === "z" && !evt.shiftKey) {
+    // Shift is held throughout a Shift straight cut, so Ctrl/Command + Shift + Z
+    // must still remove a segment rather than redo.
+    if (key === "z" && (!evt.shiftKey || state.straightChain)) {
       evt.preventDefault();
       undoLastCut();
     } else if (key === "y" || (key === "z" && evt.shiftKey)) {
@@ -1054,6 +1289,7 @@ export function createStudioEngine(config) {
   }
 
   function applyRandomCut() {
+    cancelStraightChain();
     if (state.drawing || state.panning) return;
     if (!state.paperGeom || state.paperGeom.length === 0) {
       setStatus("No paper remaining for a random cut.");
@@ -1089,6 +1325,7 @@ export function createStudioEngine(config) {
   // -------------------------------------------------------------------------
 
   function clearInteractionState() {
+    discardStraightChain();
     clearFallingCutAnimations();
     clearTouchLongPressArm();
     clearTouchPointers(state.touch.folded);
@@ -1259,7 +1496,10 @@ export function createStudioEngine(config) {
       state.touchDrawStartPoint = null;
       state.touchDrawMoved = false;
       state.touchDrawStartTime = 0;
-      if (state.drawing) {
+      if (state.drawing && state.straightChain) {
+        // Pinch-zooming mid-segment drops only that segment; the pending cut stays.
+        abandonStraightChainSegment();
+      } else if (state.drawing) {
         state.drawing = false;
         state.currentCut = [];
         state.livePreview = { mode: "none", text: "Ready" };
@@ -1331,7 +1571,7 @@ export function createStudioEngine(config) {
     clearTouchLongPressArm();
     state.touchLongPressTimer = setTimeout(() => {
       state.touchLongPressTimer = null;
-      if (!state.drawing) return;
+      if (!state.drawing || state.straightChain) return;
       if (!state.touchDrawStartPoint || state.touchDrawMoved) return;
       const tState = getTouchState(foldedSvg);
       if (tState.pinchActive || tState.pointers.size >= 2) return;
@@ -1384,6 +1624,15 @@ export function createStudioEngine(config) {
 
     if (handleMiddlePanPointerDown(evt, foldedSvg, state.foldedView)) return;
     if (evt.button !== 0) return;
+    if (state.straightChain) {
+      if (isStraightChainShiftReleased(evt)) {
+        // Shift was released without us seeing the keyup (e.g. focus was elsewhere).
+        cancelStraightChain();
+      } else {
+        startStraightChainSegment(evt, getSvgPoint(evt, foldedSvg, state.foldedView));
+        return;
+      }
+    }
     const rawPt = getSvgPoint(evt, foldedSvg, state.foldedView);
     const snappedStart = snapPointToBoundaryIfClose(rawPt, state.paperGeom, EDGE_START_SNAP_TOL);
     const nearEdge = dist(rawPt, snappedStart) <= EDGE_START_SNAP_TOL + 0.001;
@@ -1463,6 +1712,10 @@ export function createStudioEngine(config) {
     }
 
     if (handlePanPointerMove(evt, foldedSvg)) return;
+    if (state.straightChain) {
+      updateStraightChainFromPointerMove(evt);
+      return;
+    }
     if (!state.drawing) return;
 
     const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
@@ -1472,11 +1725,39 @@ export function createStudioEngine(config) {
     }
     if (isStraightModeActive(evt)) {
       updateShiftConstrainedCut(pt);
+      state.livePreview = classifyStraightCut(state.currentCut, state.paperGeom);
     } else {
       addPointToCurrentCut(pt);
+      state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
     }
-    state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
 
+    setStatus(state.livePreview.text);
+    render();
+  }
+
+  function updateStraightChainFromPointerMove(evt) {
+    if (isStraightChainShiftReleased(evt)) {
+      cancelStraightChain();
+      return;
+    }
+    const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
+    if (state.drawing) {
+      updateStraightChainDraft(pt);
+    } else if (evt.pointerType !== "touch") {
+      // Mouse/pen hover: rubber-band line from the anchor so a click places the next point.
+      state.straightChainHover = pt;
+      updateStraightChainDraft(pt, true);
+    } else {
+      return;
+    }
+    setStatus(state.livePreview.text);
+    render();
+  }
+
+  function onFoldedPointerLeave(evt) {
+    if (!state.straightChain || state.drawing || evt.pointerType === "touch" || !state.straightChainHover) return;
+    state.straightChainHover = null;
+    updateStraightChainDraft();
     setStatus(state.livePreview.text);
     render();
   }
@@ -1534,6 +1815,17 @@ export function createStudioEngine(config) {
     if (!state.drawing) return;
     state.drawing = false;
 
+    // Pending straight cut: taps count too, so this runs before the tap check below.
+    if (state.straightChain) {
+      if (isStraightChainShiftReleased(evt)) {
+        releaseFoldedPointer(evt.pointerId);
+        cancelStraightChain();
+      } else {
+        finishStraightChainSegment(evt);
+      }
+      return;
+    }
+
     if (evt.pointerType === "touch" && !state.touchDrawMoved) {
       state.currentCut = [];
       state.livePreview = { mode: "none", text: "Ready" };
@@ -1549,10 +1841,17 @@ export function createStudioEngine(config) {
     const pt = getSvgPoint(evt, foldedSvg, state.foldedView);
     if (isStraightModeActive(evt)) {
       updateShiftConstrainedCut(pt);
+      state.livePreview = classifyStraightCut(state.currentCut, state.paperGeom);
+      if (state.livePreview.mode === "partial") {
+        // Started outside and released inside: keep cutting from here.
+        releaseFoldedPointer(evt.pointerId);
+        beginStraightChain(evt, state.currentCut);
+        return;
+      }
     } else {
       addPointToCurrentCut(pt);
+      state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
     }
-    state.livePreview = getLiveCutPreview(state.currentCut, state.paperGeom, cutValidationOptions());
     if (foldedSvg.hasPointerCapture(evt.pointerId)) foldedSvg.releasePointerCapture(evt.pointerId);
     finalizeCut(releaseStartedReady);
     if (consumeStraightArm) state.touchStraightArmed = false;
@@ -1574,8 +1873,15 @@ export function createStudioEngine(config) {
       }
     }
 
-    state.drawing = false;
     if (state.panning) stopPanning();
+    if (state.straightChain) {
+      // Only the segment in progress is lost; the pending cut stays.
+      state.circleHoverPoint = null;
+      abandonStraightChainSegment();
+      return;
+    }
+
+    state.drawing = false;
     state.currentCut = [];
     state.touchDrawStartPoint = null;
     state.touchDrawMoved = false;
@@ -1668,9 +1974,27 @@ export function createStudioEngine(config) {
 
   function onDocumentKeyDown(evt) {
     handleHistoryShortcut(evt);
+    if (evt.key === "Escape" && state.straightChain && !isEscapeHandledElsewhere(evt)) {
+      evt.preventDefault();
+      cancelStraightChain();
+    }
+  }
+
+  /** Esc belongs to an open dialog/menu or an editable control rather than the pending cut. */
+  function isEscapeHandledElsewhere(evt) {
+    if (evt.defaultPrevented) return true;
+    if (document.querySelector("dialog[open], [role='menu']")) return true;
+    const target = evt.target;
+    return target instanceof HTMLElement && !!(
+      target.isContentEditable ||
+      target.closest("input, textarea, select, [role='textbox'], [role='searchbox']")
+    );
   }
 
   function onDocumentKeyUp(evt) {
+    if (evt.key === "Shift" && state.straightChain && state.straightChain.source === "shift") {
+      cancelStraightChain();
+    }
     if ((evt.key === "Control" || evt.key === "Meta") && state.circleHoverPoint && !state.drawing && state.activeTool !== TOOL_CIRCLE) {
       clearCirclePreview();
       render();
@@ -1695,6 +2019,7 @@ export function createStudioEngine(config) {
     addSvgListener(foldedSvg, "pointermove", onFoldedPointerMove);
     addSvgListener(foldedSvg, "pointerup", onFoldedPointerUp);
     addSvgListener(foldedSvg, "pointercancel", onFoldedPointerCancel);
+    addSvgListener(foldedSvg, "pointerleave", onFoldedPointerLeave);
     addSvgListener(foldedSvg, "wheel", onFoldedWheel, { passive: false });
     addSvgListener(foldedSvg, "contextmenu", preventDefault);
 
@@ -1752,6 +2077,8 @@ export function createStudioEngine(config) {
     if (rafId !== null) cancelAnimationFrame(rafId);
     rafId = null;
     clearTouchLongPressArm();
+    state.straightChain = null;
+    state.straightChainHover = null;
     for (const [type, handler] of documentListeners) document.removeEventListener(type, handler);
     for (const [type, handler] of windowListeners) window.removeEventListener(type, handler);
     documentListeners.length = 0;
@@ -1776,6 +2103,8 @@ export function createStudioEngine(config) {
     setOptions: setSnowflakeOptions,
     setActiveTool: (toolId) => setActiveTool(toolId, { announce: true }),
     toggleCircleResizeMode: () => setCircleResizeMode(!state.circleResizeMode),
+    cancelStraightCut: () => cancelStraightChain(),
+    isStraightCutPending: () => state.straightChain !== null,
     getActiveTool: () => state.activeTool,
     getOptions: () => normalizeSnowflakeOptions(state.options),
     getPaperGeom: () => cloneGeom(state.paperGeom),

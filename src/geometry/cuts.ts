@@ -3,7 +3,9 @@
 // A cut is a free-hand poly-line the user draws across the folded paper. This
 // module smooths/prettifies the path, decides whether it is a valid
 // edge-to-edge cut, and computes the resulting geometry by subtracting a
-// "ribbon" (the stroked path widened into a polygon) from the paper.
+// "ribbon" (the stroked path widened into a polygon) from the paper. Straight
+// cuts, which may be built from several segments, skip smoothing so their
+// corners stay exact.
 
 import polygonClipping from "polygon-clipping";
 import { APEX, CUT_WIDTH, FOLD_BASE, MIN_EDGE_INSIDE_LENGTH } from "../constants.ts";
@@ -21,6 +23,21 @@ type CutValidationOptions = {
   requireEndpointsOutside?: boolean;
   requireStartOutside?: boolean;
 };
+
+type CutOutcomeOptions = {
+  /** Keep every vertex exactly (multi-segment straight cuts) instead of smoothing the path. */
+  straight?: boolean;
+};
+
+/** Remove consecutive near-duplicate points without smoothing, so straight-cut corners stay put. */
+export function dedupeCutPath(points, minDist = 1.6) {
+  if (points.length === 0) return [];
+  const deduped = [points[0]];
+  for (let i = 1; i < points.length; i += 1) {
+    if (dist(points[i], deduped[deduped.length - 1]) >= minDist) deduped.push(points[i]);
+  }
+  return deduped;
+}
 
 /** Remove near-duplicate points and apply a light 3-tap smoothing pass. */
 export function sanitizeCutPath(points) {
@@ -160,6 +177,34 @@ export function getLiveCutPreview(points, geom, options: CutValidationOptions = 
   return { mode: "invalid", text: "Need an edge-to-edge cut." };
 }
 
+/**
+ * Classify a straight-segment cut path, used exactly as given (no smoothing):
+ * `edge` when it is a valid edge-to-edge cut, `partial` when it starts outside
+ * the paper and currently ends inside it (so another straight segment can
+ * continue from that end), and `invalid` otherwise. Both ends must be outside
+ * the paper for `edge`, so a pending multi-segment cut never completes inside.
+ */
+export function classifyStraightCut(points, geom) {
+  const path = dedupeCutPath(points);
+  if (path.length < 2) return { mode: "none", text: "Drawing...", reason: "Cut too short." };
+
+  const validation = validateCut(path, geom, { requireEndpointsOutside: true });
+  if (validation.valid) {
+    return { mode: "edge", text: "Edge-to-edge ready: release to cut.", reason: validation.reason };
+  }
+  if (startsInsidePaper(path, geom)) {
+    return { mode: "invalid", text: "Start the cut outside the paper.", reason: validation.reason };
+  }
+  if (pointInGeom(path[path.length - 1], geom)) {
+    return {
+      mode: "partial",
+      text: "Release to place a corner, then continue the straight cut.",
+      reason: validation.reason
+    };
+  }
+  return { mode: "invalid", text: "Need an edge-to-edge cut.", reason: validation.reason };
+}
+
 /** Average direction of the first (or last) few segments, normalised. */
 function getEndpointDirection(points, fromStart) {
   if (points.length < 2) return { x: 0, y: 0 };
@@ -179,6 +224,47 @@ function getEndpointDirection(points, fromStart) {
   const mag = Math.hypot(vx, vy);
   if (mag < 1e-6) return { x: 0, y: 0 };
   return { x: vx / mag, y: vy / mag };
+}
+
+/** Unit direction of the single segment `from` -> `to`. */
+function getSegmentDirection(from, to) {
+  const vx = to.x - from.x;
+  const vy = to.y - from.y;
+  const mag = Math.hypot(vx, vy);
+  if (mag < 1e-6) return { x: 0, y: 0 };
+  return { x: vx / mag, y: vy / mag };
+}
+
+/**
+ * Widen a straight-segment poly-line into the union of one rectangle per
+ * segment. Interior joints get square caps so sharp corners keep the full cut
+ * width (a single offset ribbon pinches there); the outer ends stay flat.
+ */
+function straightPathToRibbonGeom(points, width) {
+  const half = width / 2;
+  const lastSegment = points.length - 2;
+  const rects = [];
+  for (let i = 0; i <= lastSegment; i += 1) {
+    const dir = getSegmentDirection(points[i], points[i + 1]);
+    if (dir.x === 0 && dir.y === 0) continue;
+    const startCap = i === 0 ? 0 : half;
+    const endCap = i === lastSegment ? 0 : half;
+    const sx = points[i].x - dir.x * startCap;
+    const sy = points[i].y - dir.y * startCap;
+    const ex = points[i + 1].x + dir.x * endCap;
+    const ey = points[i + 1].y + dir.y * endCap;
+    const nx = -dir.y * half;
+    const ny = dir.x * half;
+    rects.push([[[sx + nx, sy + ny], [ex + nx, ey + ny], [ex - nx, ey - ny], [sx - nx, sy - ny]]]);
+  }
+  if (rects.length === 0) return [];
+  if (rects.length === 1) return normalizeGeom(rects);
+  try {
+    return normalizeGeom(polygonClipping.union(rects[0], ...rects.slice(1)));
+  } catch (err) {
+    console.error("Straight cut ribbon union failed", err);
+    return [];
+  }
 }
 
 /** Widen a poly-line into a closed polygon ring of the given width. */
@@ -267,27 +353,34 @@ function chooseEdgeCutResult(parts, outerBase) {
 
 /**
  * Subtract the cut ribbon from `sourceGeom` and return `{ finalGeom,
- * removedGeom }`. `removedGeom` is used to animate the falling scrap.
+ * removedGeom }`. `removedGeom` is used to animate the falling scrap. With
+ * `{ straight: true }` the path's vertices are kept exactly (no smoothing) and
+ * each segment is cut at full width, preserving sharp corners.
  */
-export function computeCutOutcome(sourceGeom, points, mode, outerBase) {
-  const draw = sanitizeCutPath(points);
+export function computeCutOutcome(sourceGeom, points, mode, outerBase, options: CutOutcomeOptions = {}) {
+  const straight = options.straight === true;
+  const draw = straight ? dedupeCutPath(points) : sanitizeCutPath(points);
   if (draw.length < 2) return null;
   const originalGeom = cloneGeom(sourceGeom);
 
   if (mode === "edge") {
     // Extend both ends slightly so the ribbon fully crosses the boundary.
-    const startDir = getEndpointDirection(draw, true);
-    const endDir = getEndpointDirection(draw, false);
+    const li = draw.length - 1;
+    const startDir = straight ? getSegmentDirection(draw[0], draw[1]) : getEndpointDirection(draw, true);
+    const endDir = straight ? getSegmentDirection(draw[li], draw[li - 1]) : getEndpointDirection(draw, false);
     const ext = 6;
     draw[0] = { x: draw[0].x - startDir.x * ext, y: draw[0].y - startDir.y * ext };
-    const li = draw.length - 1;
     draw[li] = { x: draw[li].x - endDir.x * ext, y: draw[li].y - endDir.y * ext };
   }
 
-  const ribbonRing = polylineToRibbon(draw, CUT_WIDTH);
-  if (ribbonRing.length < 3) return null;
-
-  const cutGeom = normalizeGeom([[[...ribbonRing]]]);
+  let cutGeom;
+  if (straight) {
+    cutGeom = straightPathToRibbonGeom(draw, CUT_WIDTH);
+  } else {
+    const ribbonRing = polylineToRibbon(draw, CUT_WIDTH);
+    if (ribbonRing.length < 3) return null;
+    cutGeom = normalizeGeom([[[...ribbonRing]]]);
+  }
   if (cutGeom.length === 0) return null;
 
   let next;

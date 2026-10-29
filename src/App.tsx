@@ -22,7 +22,7 @@ export default function App() {
   const backgroundCanvasRef = useRef(null);
   const printSheetRef = useRef<HTMLDivElement>(null);
 
-  const { engineRef, status, setStatus, history, activeTool, circleResizeMode, options, canSave } = useStudioEngine({
+  const { engineRef, status, setStatus, history, activeTool, circleResizeMode, straightCutPending, options, canSave } = useStudioEngine({
     foldedHostRef,
     unfoldedHostRef,
     backgroundCanvasRef
@@ -100,10 +100,12 @@ export default function App() {
             hostRef={foldedHostRef}
             activeTool={activeTool}
             circleResizeMode={circleResizeMode}
+            straightCutPending={straightCutPending}
             canUndo={history.canUndo}
             canRedo={history.canRedo}
             onSelectTool={(toolId) => engineRef.current?.setActiveTool(toolId)}
             onToggleCircleResize={() => engineRef.current?.toggleCircleResizeMode()}
+            onCancelStraightCut={() => engineRef.current?.cancelStraightCut()}
             onNew={handleNew}
             onUndo={() => engineRef.current?.undo()}
             onRedo={() => engineRef.current?.redo()}

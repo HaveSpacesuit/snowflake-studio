@@ -324,6 +324,33 @@ button:disabled {
   z-index: 3;
 }
 
+.straightCutCancel {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border-color: rgba(255, 209, 102, 0.85);
+  background: rgba(10, 18, 32, 0.82);
+  color: #ffe2a3;
+  backdrop-filter: blur(2px);
+}
+
+.straightCutCancel:hover,
+.straightCutCancel:focus-visible {
+  background: rgba(255, 209, 102, 0.18);
+  border-color: rgba(255, 209, 102, 1);
+}
+
+@media (pointer: coarse) {
+  .straightCutCancel {
+    min-height: 44px;
+    padding: 8px 16px;
+  }
+}
+
 .verticalToolRailButton {
   position: relative;
   width: 34px;

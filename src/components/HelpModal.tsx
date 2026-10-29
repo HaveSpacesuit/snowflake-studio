@@ -44,6 +44,7 @@ export default function HelpModal({ open, onClose }) {
               <li><strong>Wheel</strong> over either panel zooms that panel. <strong>Middle-click and drag</strong> a zoomed panel to pan.</li>
               <li>Choose <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> from the Edit tool rail.</li>
               <li>Hold <strong>Shift</strong> while drawing to make the next freehand stroke straight.</li>
+              <li>A straight cut can turn corners: start outside the paper and release inside it, then click or drag to add straight segments until one leaves the paper. If you started with <strong>Shift</strong>, keep holding it until the cut is done; releasing it cancels the cut. <strong>Esc</strong> or <strong>Cancel cut</strong> also cancels, and <strong>Undo</strong> removes the last corner.</li>
               <li>In <strong>Circle</strong> mode, move the pointer to position the circle, use <strong>Ctrl + wheel</strong> (or <strong>Command + wheel</strong> on macOS) to resize it, then click to cut.</li>
               <li>Hold <strong>Ctrl</strong> or <strong>Command</strong> while drawing in Edit to temporarily use Circle mode without changing the selected tool.</li>
               <li><strong>New</strong> clears the current design after confirmation. <strong>Undo</strong> and <strong>Redo</strong> manage accepted cuts.</li>
@@ -57,6 +58,7 @@ export default function HelpModal({ open, onClose }) {
               <li><strong>Pinch with two fingers</strong> on either panel to zoom. The zoom badge shows the current scale.</li>
               <li>Choose <strong>Freehand</strong>, <strong>Straight</strong>, or <strong>Circle</strong> from the Edit tool rail.</li>
               <li><strong>Long-press</strong> on Edit to arm a one-time straight cut, then drag through the paper.</li>
+              <li>A straight cut can turn corners: start outside the paper and lift your finger inside it, then tap or drag to add straight segments until one leaves the paper. Tap <strong>Cancel cut</strong> to stop, or <strong>Undo</strong> to remove the last corner.</li>
               <li>In <strong>Circle</strong> mode, tap <strong>Resize circle</strong>, pinch to change the radius, and tap it again when you want pinch to zoom instead.</li>
               <li><strong>New</strong> clears the current design after confirmation. <strong>Undo</strong> and <strong>Redo</strong> manage accepted cuts.</li>
             </ul>
@@ -67,6 +69,7 @@ export default function HelpModal({ open, onClose }) {
             <ul>
               <li>For freehand and straight cuts, begin and end just <strong>outside</strong> the folded paper so the path clearly crosses an edge. A start point close to an edge snaps to that edge.</li>
               <li>A cut may leave and return through the <strong>same edge</strong>; both endpoints still need to reach an edge.</li>
+              <li>A straight cut that stops inside the paper waits at that corner instead of being rejected. Once a later segment leaves the paper, the whole path is applied as one cut and one <strong>Undo</strong> step.</li>
               <li>Interior-only freehand and straight strokes are rejected. If a stroke is rejected, simplify it or start farther outside the paper.</li>
               <li>Circle cuts are valid when the circle is inside the paper or overlaps its edge. A circle that does not overlap the paper does not remove anything.</li>
               <li><strong>Random cut</strong> creates a valid example cut and limits the amount removed so it is safe for exploring the editor.</li>
