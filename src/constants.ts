@@ -28,6 +28,9 @@ export const CUT_WIDTH = 3;
 export const GEOM_GRID = 0.01;
 export const CLEAN_EPS = 1e-4;
 export const MAX_RANDOM_CUT_REMOVAL_FRACTION = 0.25;
+// Smallest gap between the design and the paper's outer edge that is worth
+// re-expanding to fill; anything smaller is just grid rounding.
+export const EXPAND_TO_FILL_MIN_GAP = 0.05;
 
 // ---------------------------------------------------------------------------
 // View (zoom + pan + spin)
@@ -76,5 +79,6 @@ export const DEFAULT_OUTLINE_EXTERIOR_WIDTH = 3.2;
 export const DEFAULT_OUTLINE_INTERIOR_WIDTH = 1.8;
 export const DEFAULT_SNOWFLAKE_COLOR = "#ffffff";
 export const DEFAULT_PREVIEW_MODE = "outline-and-body";
+export const DEFAULT_EXPAND_TO_FILL = true;
 export const OUTLINE_WIDTH_MIN = 0.5;
 export const OUTLINE_WIDTH_MAX = 6;

@@ -55,12 +55,17 @@ import {
   validateCut
 } from "../geometry/cuts.ts";
 import { buildUnfoldedGeom } from "../geometry/unfold.ts";
+import { expandGeomToFill } from "../geometry/expand.ts";
 import { buildUnfoldedOutlinePaths } from "../geometry/outline.ts";
 import { generateRandomValidCut } from "../geometry/randomCut.ts";
 import { clampViewToCanvas, resetView, zoomViewAtPoint } from "../geometry/view.ts";
 import { createBasePaperGeomForSideCount, getOuterBaseForSideCount } from "../geometry/paper.ts";
 import { normalizeSideCount, normalizeSnowflakeOptions } from "../snowflake/options.ts";
-import { computeSnowflakeSignature, getBasePaperSignature } from "../snowflake/signature.ts";
+import {
+  computeSnowflakeSignature,
+  getBasePaperSignature,
+  upgradeLegacySnowflakeSignature
+} from "../snowflake/signature.ts";
 import { buildPrintPreviewSvgString } from "../print/previewSvg.ts";
 import {
   loadActiveStudioState,
@@ -529,8 +534,10 @@ export function createStudioEngine(config) {
     }
     enqueueFallingCutAnimation(removedGeom);
 
+    const expanded = expandPaperToFill();
     setStatus(
-      `Circle cut applied (radius ${Math.round(radius)} px). Remaining area: ${Math.round(afterArea)} px`
+      `Circle cut applied (radius ${Math.round(radius)} px). Remaining area: ${Math.round(geomArea(state.paperGeom))} px` +
+        (expanded ? ". Expanded to fill the paper." : "")
     );
     updateHistoryControls();
 
@@ -692,7 +699,10 @@ export function createStudioEngine(config) {
     if (!Number.isFinite(state.unfoldedBaseScale) || state.unfoldedBaseScale <= 0) {
       state.unfoldedBaseScale = dynamicFit.scale;
     }
-    return { x: dynamicFit.x, y: dynamicFit.y, scale: state.unfoldedBaseScale };
+    // The frozen base scale keeps cut-down snowflakes at their true size, but it
+    // must never let a snowflake that has grown back (Undo, or re-expansion
+    // after a restore) spill out of the panel.
+    return { x: dynamicFit.x, y: dynamicFit.y, scale: Math.min(state.unfoldedBaseScale, dynamicFit.scale) };
   }
 
   function getUnfoldedSpinAngle() {
@@ -949,6 +959,21 @@ export function createStudioEngine(config) {
     return { applied: true, removedGeom: outcome.removedGeom };
   }
 
+  /**
+   * With "Expand to fill paper" on, grow the design about the apex until it
+   * touches the outer edge again. It runs inside the cut that triggered it, so
+   * that cut's single Undo step restores the design from before the cut.
+   * Returns true when the design grew.
+   */
+  function expandPaperToFill() {
+    if (!state.options.expandToFill) return false;
+    const { geom, scale } = expandGeomToFill(state.paperGeom, state.options.sideCount);
+    if (scale <= 1) return false;
+    state.paperGeom = geom;
+    state.unfoldedDirty = true;
+    return true;
+  }
+
   function cutValidationOptions() {
     return { requireEndpointsOutside: state.activeTool === TOOL_FREEHAND || state.activeTool === TOOL_STRAIGHT };
   }
@@ -1033,15 +1058,18 @@ export function createStudioEngine(config) {
       return false;
     }
     enqueueFallingCutAnimation(cutResult.removedGeom);
+    const removedPaper = geomArea(state.paperGeom) < beforeArea;
+    const expanded = removedPaper && expandPaperToFill();
     const afterArea = geomArea(state.paperGeom);
 
-    if (afterArea >= beforeArea) {
+    if (!removedPaper) {
       setStatus("Cut accepted (" + validation.reason + "), but no removable piece detected.");
     } else {
       const detail = segments > 1 ? ", " + segments + " segments" : prettified ? ", prettified" : "";
       setStatus(
         "Accepted (" + validation.reason + detail + "). Components: " +
-          state.paperGeom.length + ", remaining area: " + Math.round(afterArea) + " px"
+          state.paperGeom.length + ", remaining area: " + Math.round(afterArea) + " px" +
+          (expanded ? ". Expanded to fill the paper." : "")
       );
     }
 
@@ -1384,7 +1412,7 @@ export function createStudioEngine(config) {
     stopPanning();
     state.options = restoredOptions;
     state.lastCollectionSavedSignature = typeof parsed.lastCollectionSavedSignature === "string"
-      ? parsed.lastCollectionSavedSignature
+      ? upgradeLegacySnowflakeSignature(parsed.lastCollectionSavedSignature)
       : restoredSignature;
 
     resetView(state.foldedView);

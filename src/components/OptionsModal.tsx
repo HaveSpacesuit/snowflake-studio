@@ -231,6 +231,25 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
             <option value="letter">Letter (8.5 x 11 in)</option>
             <option value="a4">A4</option>
           </select>
+
+          <label className="optionsLabel" htmlFor="optionsExpandToFillInput">Expand to fill paper</label>
+          <input
+            id="optionsExpandToFillInput"
+            className="optionsCheckbox"
+            type="checkbox"
+            checked={options.expandToFill}
+            aria-describedby="optionsExpandToFillNote"
+            onChange={(e) =>
+              apply(
+                { expandToFill: e.target.checked },
+                e.target.checked ? "Expand to fill paper turned on." : "Expand to fill paper turned off."
+              )
+            }
+          />
+          <p id="optionsExpandToFillNote" className="optionsNote">
+            When cuts trim away the outer edge, the design grows to fill the paper again so the unfolded
+            snowflake stays as large as possible. This applies to cuts you make afterward.
+          </p>
         </div>
 
         <div className="optionsActions">

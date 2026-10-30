@@ -33,6 +33,7 @@ const dialogs = [
       "#optionsBodyColorInput",
       "#optionsSideCountInput",
       "#printPaperSize",
+      "#optionsExpandToFillInput",
       "#optionsRestoreDefaultsBtn",
       "#optionsCancelBtn",
       "#optionsSaveBtn"
@@ -106,10 +107,13 @@ test("Escape discards live and staged Options changes", async ({ page }) => {
   const initialSideCount = await sideCount.inputValue();
   const paperSize = page.locator("#printPaperSize");
   const initialPaperSize = await paperSize.inputValue();
+  const expandToFill = page.locator("#optionsExpandToFillInput");
+  const initialExpandToFill = await expandToFill.isChecked();
 
   await mode.fill(initialMode === "2" ? "0" : "2");
   await sideCount.fill(initialSideCount === "7" ? "6" : "7");
   await paperSize.selectOption(initialPaperSize === "letter" ? "a4" : "letter");
+  await expandToFill.setChecked(!initialExpandToFill);
   await page.keyboard.press("Escape");
   await expect(page.locator("dialog[open]")).toHaveCount(0);
   await expect(launcher).toBeFocused();
@@ -119,6 +123,7 @@ test("Escape discards live and staged Options changes", async ({ page }) => {
   await expect(mode).toHaveValue(initialMode);
   await expect(sideCount).toHaveValue(initialSideCount);
   await expect(paperSize).toHaveValue(initialPaperSize);
+  await expect(expandToFill).toBeChecked({ checked: initialExpandToFill });
 });
 
 test("Escape cancels New after a previous confirmation", async ({ page }) => {

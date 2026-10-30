@@ -1,8 +1,9 @@
 // Normalisation for snowflake options (colours, widths, side count, preview
-// mode). Everything that reads or writes options funnels through
+// mode, expand-to-fill). Everything that reads or writes options funnels through
 // `normalizeSnowflakeOptions` so invalid/legacy values are always repaired.
 
 import {
+  DEFAULT_EXPAND_TO_FILL,
   DEFAULT_OUTLINE_EXTERIOR_COLOR,
   DEFAULT_OUTLINE_EXTERIOR_WIDTH,
   DEFAULT_OUTLINE_INTERIOR_WIDTH,
@@ -60,6 +61,11 @@ export function normalizeOutlineWidth(value, fallback) {
   return clamp(Math.round(numeric * 10) / 10, OUTLINE_WIDTH_MIN, OUTLINE_WIDTH_MAX);
 }
 
+/** Only an explicit `false` turns re-expansion off, so older saved data keeps the default. */
+export function normalizeExpandToFill(value) {
+  return typeof value === "boolean" ? value : DEFAULT_EXPAND_TO_FILL;
+}
+
 /**
  * Return a fully-populated, validated options object. Accepts partial input,
  * `null`, or the legacy single `outlineColor` field.
@@ -85,6 +91,7 @@ export function normalizeSnowflakeOptions(value) {
       ? normalizeOutlineColor(source.snowflakeColor)
       : DEFAULT_SNOWFLAKE_COLOR,
     sideCount: normalizeSideCount(source.sideCount, DEFAULT_SIDE_COUNT),
-    previewMode: normalizePreviewMode(source.previewMode)
+    previewMode: normalizePreviewMode(source.previewMode),
+    expandToFill: normalizeExpandToFill(source.expandToFill)
   };
 }

@@ -870,6 +870,15 @@ button:disabled {
   width: 100%;
 }
 
+.optionsCheckbox {
+  justify-self: start;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #7ad5ff;
+  cursor: pointer;
+}
+
 .optionsColorInput:disabled,
 .optionsRangeInput:disabled,
 .optionsModeSlider:disabled {

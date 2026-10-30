@@ -16,6 +16,9 @@ and the in-progress editor are stored in the browser's local storage.
   `Command+Z`/`Command+Shift+Z` on macOS.
 - Preview representation options (outline, body, or both), body/outline
   colors, outline thickness, and four- through ten-sided snowflakes.
+- An **Expand to fill paper** option, on by default, that grows a design back
+  out to the paper's outer edge after cuts trim it away, so a printed and
+  unfolded snowflake uses as much of the paper as possible.
 - A local Collection page for reopening, deleting, sharing, importing, and
   printing saved designs.
 - Printable cutting instructions for six-sided snowflakes, either through the
@@ -61,6 +64,17 @@ restores the values captured when the dialog opened. Changing side count from
 new snowflake and discards the current cuts. Print paper size can be Letter or
 A4.
 
+**Expand to fill paper** is on by default. When cuts, whether one or several,
+trim away the outer (top) edge of the folded wedge so that the design no longer
+reaches it, the remaining design is scaled up about the apex (the center of the
+snowflake) until it touches the outer edge again. Proportions are kept, so the
+unfolded snowflake comes out as large as the paper allows. A cut that leaves
+any part of the design on the outer edge does not trigger expansion. The
+growth happens as part of the cut that clears the edge, so Undo reverts both
+together. Turning the option on or off affects the cuts made afterward and
+never rescales the current design. Turn it off in Options to keep trimmed
+designs at their drawn size.
+
 Print actions are enabled only for six-sided snowflakes. **Print instructions**
 opens the browser's print dialog, while **Save instructions** downloads the
 same instruction sheet as a PDF.
@@ -87,8 +101,9 @@ private browsing can remove or limit these locally stored designs.
 - `src/components/` — React UI, dialogs, navigation, collection tiles, and
   print layout.
 - `src/studio/` — imperative SVG editor engine and input/rendering lifecycle.
-- `src/geometry/` — polygon normalization, cut validation, unfolding, view
-  transforms, and random-cut generation.
+- `src/geometry/` — polygon normalization, cut validation, unfolding, expanding
+  a trimmed design to fill the paper, view transforms, and random-cut
+  generation.
 - `src/snowflake/` — option normalization, local persistence, signatures, and
   portable share-file parsing.
 - `src/print/` — print preview generation and PDF export.

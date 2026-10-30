@@ -83,6 +83,7 @@ export default function HelpModal({ open, onClose }) {
               <li>Use <strong>Options</strong> to choose outline, body, or outline-and-body preview; set body and interior/exterior outline colors; and adjust outline thickness.</li>
               <li>Options are applied live while the dialog is open. Choose <strong>Cancel</strong> to restore the values from when it opened, or <strong>Restore defaults</strong> to stage the default appearance.</li>
               <li>Side count can be set from <strong>4 through 10</strong>. Saving a changed side count starts a new snowflake because the folded base geometry changes.</li>
+              <li><strong>Expand to fill paper</strong> is on by default. When cuts trim away the outer edge of the folded paper, the design grows to fill the paper again while keeping its proportions, so the unfolded snowflake stays as large as possible. It applies to the cuts you make afterward, and <strong>Undo</strong> reverts the growth together with its cut. Turn it off in Options to keep trimmed designs at their drawn size.</li>
             </ul>
           </section>
 

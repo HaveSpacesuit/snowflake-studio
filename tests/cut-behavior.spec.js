@@ -504,6 +504,14 @@ async function reset(page) {
   await page.locator("#resetBtn").click();
 }
 
+// Re-expanding a trimmed design can leave a cut with more paper than before,
+// so tests that compare paper area around random cuts run with it off.
+async function disableExpandToFill(page) {
+  await page.locator("#optionsBtn").click();
+  await page.locator("#optionsExpandToFillInput").setChecked(false);
+  await page.locator("#optionsSaveBtn").click();
+}
+
 async function panelSize(locator) {
   return await locator.evaluate((el) => {
     const widthAttr = Number(el.getAttribute("width"));
@@ -920,6 +928,7 @@ test.describe("snowflake cut validity", () => {
 
   test("random cut button applies a valid cut", async ({ page }) => {
     await reset(page);
+    await disableExpandToFill(page);
 
     const before = await whitePixelCount(page);
     await page.locator("#randomCutBtn").click();
@@ -932,6 +941,7 @@ test.describe("snowflake cut validity", () => {
 
   test("random cut uses the selected straight tool", async ({ page }) => {
     await reset(page);
+    await disableExpandToFill(page);
     await selectTool(page, "Straight tool");
 
     const before = await whitePixelCount(page);
@@ -945,6 +955,7 @@ test.describe("snowflake cut validity", () => {
 
   test("random straight cuts continue to use remaining paper", async ({ page }) => {
     await reset(page);
+    await disableExpandToFill(page);
     await selectTool(page, "Straight tool");
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
@@ -960,6 +971,7 @@ test.describe("snowflake cut validity", () => {
 
   test("random cut uses the selected circle tool", async ({ page }) => {
     await reset(page);
+    await disableExpandToFill(page);
     await selectTool(page, "Circle tool");
 
     const before = await whitePixelCount(page);
@@ -974,6 +986,7 @@ test.describe("snowflake cut validity", () => {
 
   test("random cut removes no more than 25%", async ({ page }) => {
     await reset(page);
+    await disableExpandToFill(page);
 
     const before = await whitePixelCount(page);
     await page.locator("#randomCutBtn").click();

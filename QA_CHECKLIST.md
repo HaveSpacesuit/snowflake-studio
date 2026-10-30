@@ -199,6 +199,9 @@ result.
 - [ ] Focus a text/color/range control and verify browser editing behavior is
   not unexpectedly replaced by the editor shortcut.
 - [ ] Verify New clears both Undo and Redo.
+- [ ] Undo a cut that triggered Expand to fill paper and verify the design
+  returns to its exact pre-cut shape in one step; Redo restores the expanded
+  design.
 - [ ] Verify Save to collection is enabled only when the current design differs
   from the last saved version.
 - [ ] Save, make a change, undo back to the saved signature, and verify Save
@@ -264,6 +267,29 @@ result.
 - [ ] Verify Cancel restores all appearance changes made since opening, not
   merely the last individual control value.
 - [ ] Reopen Options after saving and verify the committed values persist.
+- [ ] Verify Expand to fill paper is checked by default and its note says it
+  applies to cuts made afterward.
+- [ ] With Expand to fill paper on, trim the whole outer (top) edge of the
+  folded paper with one cut. Verify the remaining design grows until it touches
+  the outer edge again, keeps its proportions, and the status mentions the
+  expansion. Verify the unfolded Preview is larger and has no stray seams along
+  the fold lines.
+- [ ] Trim the outer edge with several cuts, none of which clears it alone, and
+  verify expansion happens only after the cut that leaves a gap along the
+  entire outer edge.
+- [ ] Make a cut that leaves part of the design on the outer edge and verify
+  nothing expands.
+- [ ] Repeat the trim with a Straight cut and with Circle cuts, and at several
+  side counts.
+- [ ] Turn Expand to fill paper off, repeat the trim, and verify the design
+  stays at its drawn size.
+- [ ] Toggle Expand to fill paper between cuts and verify the toggle itself
+  never rescales the current design.
+- [ ] Verify the setting persists after saving Options and reloading Studio,
+  that Restore defaults turns it back on, and that Cancel discards a change
+  made since the dialog opened.
+- [ ] Load a design saved before this option existed (from Collection or an
+  imported share file) and verify Expand to fill paper is on.
 - [ ] Verify focus enters the dialog, remains usable, and returns to a sensible
   control after close.
 
