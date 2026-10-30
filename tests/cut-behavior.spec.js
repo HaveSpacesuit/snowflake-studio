@@ -1532,6 +1532,67 @@ test.describe("snowflake cut validity", () => {
     expect((pathData || "").match(/M /g)?.length).toBeGreaterThanOrEqual(2);
   });
 
+  for (const { side, center } of [
+    { side: "outside", center: { x: 230, y: 350 } },
+    { side: "inside", center: { x: 172, y: 490 } }
+  ]) {
+    test(`large circle cut removes the smaller ${side} section`, async ({ page }) => {
+      await reset(page);
+      await disableExpandToFill(page);
+      await selectTool(page, "Circle tool");
+      const paper = page.locator('#foldedCanvas [data-role="paper-shape"]');
+      const initialPath = await paper.getAttribute("d");
+      const beforeArea = await whitePixelCount(page);
+
+      await hoverFoldedPoint(page, center);
+      await page.locator("#foldedCanvas").evaluate((canvas) => {
+        for (let i = 0; i < 93; i += 1) {
+          canvas.dispatchEvent(new WheelEvent("wheel", {
+            deltaY: -1, ctrlKey: true, bubbles: true, cancelable: true
+          }));
+        }
+      });
+      await expect(page.locator("#status")).toContainText("radius (220 px)");
+      await clickFoldedPoint(page, center);
+      await expect(page.locator("#status")).toContainText("Circle cut applied");
+
+      const cutPath = await paper.getAttribute("d");
+      const afterArea = await whitePixelCount(page);
+      expect(afterArea).toBeGreaterThan(beforeArea / 2);
+      expect(afterArea).toBeLessThan(beforeArea);
+
+      const result = await page.evaluate(async ({ center, side }) => {
+        const { default: clipping } = await import("/node_modules/.vite/deps/polygon-clipping.js");
+        const { geomArea, normalizeGeom } = await import("/src/geometry/polygon.ts");
+        const { createBasePaperGeomForSideCount } = await import("/src/geometry/paper.ts");
+        const { ACTIVE_STUDIO_STORAGE_KEY } = await import("/src/constants.ts");
+        const base = createBasePaperGeomForSideCount(6);
+        const ring = Array.from({ length: 120 }, (_, i) => {
+          const angle = i / 120 * Math.PI * 2;
+          return [center.x + Math.cos(angle) * 220, center.y + Math.sin(angle) * 220];
+        });
+        const circle = normalizeGeom([[ring]]);
+        const expected = normalizeGeom(side === "outside"
+          ? clipping.intersection(base, circle)
+          : clipping.difference(base, circle));
+        const stored = JSON.parse(localStorage.getItem(ACTIVE_STUDIO_STORAGE_KEY));
+        return {
+          expectedArea: geomArea(expected),
+          mismatchArea: geomArea(clipping.xor(stored.paperGeom, expected))
+        };
+      }, { center, side });
+      expect(afterArea).toBeCloseTo(result.expectedArea, 0);
+      expect(result.mismatchArea).toBeLessThan(1);
+
+      await page.locator("#undoBtn").click();
+      await expect(paper).toHaveAttribute("d", initialPath);
+      await page.locator("#redoBtn").click();
+      await expect(paper).toHaveAttribute("d", cutPath);
+      await page.reload();
+      await expect(paper).toHaveAttribute("d", cutPath);
+    });
+  }
+
   test("random cut does not retain pointer focus", async ({ page }) => {
     await reset(page);
     await selectTool(page, "Circle tool");

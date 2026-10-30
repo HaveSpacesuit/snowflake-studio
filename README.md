@@ -35,7 +35,9 @@ Freehand and straight cuts must cross the folded paper from an edge to an
 edge. Start and finish just outside the paper; a start point close to an edge
 is snapped to it. Returning through the same edge is allowed, but an
 interior-only stroke is rejected. Circle cuts must be inside the paper or
-overlap it to remove material.
+overlap it to remove material. Circle cuts remove whichever side contains less
+paper: the interior for small holes, or the exterior when a large circle
+contains most of the snowflake.
 
 Straight cuts can turn corners. A straight cut that starts outside the paper
 and is released inside it waits at that corner; each click, tap, or drag adds

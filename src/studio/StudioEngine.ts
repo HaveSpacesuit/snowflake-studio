@@ -499,8 +499,13 @@ export function createStudioEngine(config) {
     }
 
     let nextGeom;
+    let removedGeom;
     try {
       nextGeom = normalizeGeom(polygonClipping.difference(beforeGeom, cutGeom));
+      removedGeom = normalizeGeom(polygonClipping.intersection(beforeGeom, cutGeom));
+      if (geomArea(removedGeom) > geomArea(nextGeom)) {
+        [nextGeom, removedGeom] = [removedGeom, nextGeom];
+      }
     } catch (err) {
       console.error("Circle cut boolean failed", err);
       setStatus("Circle cut failed due to geometry precision.");
@@ -526,12 +531,6 @@ export function createStudioEngine(config) {
     state.paperGeom = nextGeom;
     state.unfoldedDirty = true;
 
-    let removedGeom = [];
-    try {
-      removedGeom = normalizeGeom(polygonClipping.difference(beforeGeom, nextGeom));
-    } catch (_) {
-      removedGeom = [];
-    }
     enqueueFallingCutAnimation(removedGeom);
 
     const expanded = expandPaperToFill();
