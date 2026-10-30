@@ -91,7 +91,7 @@ export default function OptionsModal({ open, options, engineRef, onStatus, onClo
           <h2 id="optionsModalTitle">Options</h2>
         </div>
 
-        <p className="helpLead">Options apply to the current snowflake.</p>
+        <p className="helpLead">Options apply to the current snowflake and are kept when starting a new one.</p>
 
         <div className="optionsGrid">
           <label className="optionsLabel optionsModeLabel" htmlFor="optionsPreviewModeInput">

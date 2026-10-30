@@ -1364,7 +1364,7 @@ export function createStudioEngine(config) {
     state.touchDrawMoved = false;
   }
 
-  function resetPaper(nextOptions = normalizeSnowflakeOptions(null), readyStatus = "Ready") {
+  function resetPaper(nextOptions = state.options, readyStatus = "Ready") {
     clearInteractionState();
     state.options = normalizeSnowflakeOptions(nextOptions);
     state.paperGeom = createBasePaperGeomForSideCount(state.options.sideCount);

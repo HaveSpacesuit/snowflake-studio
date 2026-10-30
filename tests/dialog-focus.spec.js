@@ -126,6 +126,82 @@ test("Escape discards live and staged Options changes", async ({ page }) => {
   await expect(expandToFill).toBeChecked({ checked: initialExpandToFill });
 });
 
+for (const sideCount of [6, 8]) {
+  test(`New preserves saved Options for a ${sideCount}-sided snowflake`, async ({ page }) => {
+    await page.goto("/index.html");
+    await page.locator("#optionsBtn").click();
+    const values = {
+      optionsExteriorColorInput: "#123456",
+      optionsInteriorColorInput: "#abcdef",
+      optionsExteriorWidthInput: "4.2",
+      optionsInteriorWidthInput: "2.7",
+      optionsBodyColorInput: "#fedcba",
+      optionsSideCountInput: String(sideCount),
+      optionsPreviewModeInput: "0"
+    };
+    for (const [id, value] of Object.entries(values)) {
+      await page.locator(`#${id}`).fill(value);
+    }
+    await page.locator("#optionsExpandToFillInput").setChecked(false);
+    await page.locator("#printPaperSize").selectOption("a4");
+    await page.locator("#optionsSaveBtn").click();
+    await expect(page.locator("#status")).toHaveText(sideCount === 6
+      ? "Options saved."
+      : `Started new ${sideCount}-sided snowflake.`);
+    const paper = page.locator('#foldedCanvas [data-role="paper-shape"]');
+    const initialPath = await paper.getAttribute("d");
+    const readState = () => page.evaluate(() =>
+      JSON.parse(localStorage.getItem("snowflakeStudio.active.v1"))
+    );
+    const savedOptions = (await readState()).options;
+    expect(savedOptions).toEqual({
+      outlineExteriorColor: "#123456",
+      outlineInteriorColor: "#abcdef",
+      outlineExteriorWidth: 4.2,
+      outlineInteriorWidth: 2.7,
+      snowflakeColor: "#fedcba",
+      sideCount,
+      previewMode: "outline",
+      expandToFill: false
+    });
+
+    await page.locator("#randomCutBtn").click();
+    await page.locator("#randomCutBtn").click();
+    await page.locator("#undoBtn").click();
+    await expect(page.locator("#undoBtn")).toBeEnabled();
+    await expect(page.locator("#redoBtn")).toBeEnabled();
+    await page.locator("#resetBtn").click();
+    await page.locator("#collectionConfirmOk").click();
+
+    await expect(paper).toHaveAttribute("d", initialPath);
+    await expect(page.locator("#undoBtn")).toBeDisabled();
+    await expect(page.locator("#redoBtn")).toBeDisabled();
+    await expect(page.locator("#saveToCollectionBtn")).toBeDisabled();
+    expect(await readState()).toMatchObject({
+      options: savedOptions, undoStack: [], redoStack: []
+    });
+    await page.locator("#optionsBtn").click();
+    for (const [id, value] of Object.entries(values)) {
+      await expect(page.locator(`#${id}`)).toHaveValue(value);
+    }
+    await expect(page.locator("#optionsExpandToFillInput")).not.toBeChecked();
+    await expect(page.locator("#printPaperSize")).toHaveValue("a4");
+    await page.locator("#optionsCancelBtn").click();
+
+    await page.reload();
+    await expect(paper).toHaveAttribute("d", initialPath);
+    expect((await readState()).options).toEqual(savedOptions);
+    await page.locator("#optionsBtn").click();
+    await page.locator("#optionsRestoreDefaultsBtn").click();
+    await page.locator("#optionsSaveBtn").click();
+    await page.locator("#optionsBtn").click();
+    await expect(page.locator("#optionsExteriorColorInput")).toHaveValue("#65b7ff");
+    await expect(page.locator("#optionsSideCountInput")).toHaveValue("6");
+    await expect(page.locator("#optionsPreviewModeInput")).toHaveValue("1");
+    await expect(page.locator("#optionsExpandToFillInput")).toBeChecked();
+  });
+}
+
 test("Escape cancels New after a previous confirmation", async ({ page }) => {
   await page.goto("/index.html");
   await page.locator("#randomCutBtn").click();

@@ -55,16 +55,17 @@ On touch devices, long-press Edit to arm a one-time straight cut. Select
 for zoom.
 
 Wheel or pinch zooms each panel. Desktop middle-click drag pans a zoomed
-panel. **New** clears changed work after confirmation, and **Random cut**
-generates a valid exploratory cut.
+panel. **New** clears changed work after confirmation while keeping the current
+options, and **Random cut** generates a valid exploratory cut.
 
 ### Options and printing
 
 **Options** applies appearance changes live while the dialog is open. Cancel
 restores the values captured when the dialog opened. Changing side count from
 4 through 10 changes the folded base geometry; saving that change starts a
-new snowflake and discards the current cuts. Print paper size can be Letter or
-A4.
+new snowflake and discards the current cuts. Options carry over to new
+snowflakes; use **Restore defaults** to reset them explicitly. Print paper size
+can be Letter or A4.
 
 **Expand to fill paper** is on by default. When cuts, whether one or several,
 trim away the outer (top) edge of the folded wedge so that the design no longer
@@ -92,9 +93,11 @@ confirmation. **Clear all** removes every saved collection item after
 confirmation.
 
 The active Studio design is persisted separately so a browser refresh or
-return to Studio can restore work in progress. Clearing a design removes that
-active state. Clearing site data, using a different browser/profile, or
-private browsing can remove or limit these locally stored designs.
+return to Studio can restore work in progress. Starting a new snowflake clears
+the cuts and history but keeps non-default snowflake options in the active
+state so they survive a refresh. Clearing site data, using a different
+browser/profile, or private browsing can remove or limit these locally stored
+designs.
 
 ## Project layout
 
